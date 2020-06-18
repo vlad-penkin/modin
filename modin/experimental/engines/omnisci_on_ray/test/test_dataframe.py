@@ -207,7 +207,19 @@ class TestGroupby:
         modin_df = mpd.DataFrame(self.taxi_data)
         modin_df = modin_df.groupby(
             ["b", modin_df["c"].dt.year], as_index=as_index
-        ).size()
+        ).agg({"a": "size"})
+
+    def test_groupby_expr_col(self):
+        def groupby(df, **kwargs):
+            df = df.loc[:, ["b", "c"]]
+            df["year"] = df["c"].dt.year
+            df["month"] = df["c"].dt.month
+            df["id1"] = df["year"] * 12 + df["month"]
+            df["id2"] = (df["id1"] - 24000) // 12
+            df = df.groupby(["id1", "id2"], as_index=False).agg({"b": "max"})
+            return df
+
+        run_and_compare(groupby, data=self.taxi_data)
 
     def test_series_astype(self):
         df = pd.DataFrame(self.taxi_data)
@@ -576,7 +588,7 @@ class TestBinaryOp:
         "b": [3, 3, 3, 3, 3],
         "d": [4, 4, 4, 4, 4],
     }
-    fill_values = [None, 0, 1]
+    fill_values = [None, 1]
 
     def test_add_cst(self):
         def add(lib, df):
@@ -617,3 +629,141 @@ class TestBinaryOp:
             return df
 
         run_and_compare(add, data=self.data)
+
+    def test_add_columns_and_assign_to_existing(self):
+        def add(lib, df):
+            df["a"] = df["a"] + df["b"]
+            return df
+
+        run_and_compare(add, data=self.data)
+
+    def test_mul_cst(self):
+        def mul(lib, df):
+            return df * 2
+
+        run_and_compare(mul, data=self.data)
+
+    def test_mul_list(self):
+        def mul(lib, df):
+            return df * [2, 3, 4, 5]
+
+        run_and_compare(mul, data=self.data)
+
+    @pytest.mark.parametrize("fill_value", fill_values)
+    def test_mul_method_columns(self, fill_value):
+        def mul1(lib, df, fill_value):
+            return df["a"].mul(df["b"], fill_value=fill_value)
+
+        def mul2(lib, df, fill_value):
+            return df[["a", "c"]].mul(df[["b", "a"]], fill_value=fill_value)
+
+        run_and_compare(mul1, data=self.data, fill_value=fill_value)
+        run_and_compare(mul2, data=self.data, fill_value=fill_value)
+
+    def test_mul_columns(self):
+        def mul1(lib, df):
+            return df["a"] * df["b"]
+
+        def mul2(lib, df):
+            return df[["a", "c"]] * df[["b", "a"]]
+
+        run_and_compare(mul1, data=self.data)
+        run_and_compare(mul2, data=self.data)
+
+    def test_truediv_cst(self):
+        def truediv(lib, df):
+            return df / 2
+
+        run_and_compare(truediv, data=self.data)
+
+    def test_truediv_list(self):
+        def truediv(lib, df):
+            return df / [1, 0.5, 0.2, 2.0]
+
+        run_and_compare(truediv, data=self.data)
+
+    @pytest.mark.parametrize("fill_value", fill_values)
+    def test_truediv_method_columns(self, fill_value):
+        def truediv1(lib, df, fill_value):
+            return df["a"].truediv(df["b"], fill_value=fill_value)
+
+        def truediv2(lib, df, fill_value):
+            return df[["a", "c"]].truediv(df[["b", "a"]], fill_value=fill_value)
+
+        run_and_compare(truediv1, data=self.data, fill_value=fill_value)
+        run_and_compare(truediv2, data=self.data, fill_value=fill_value)
+
+    def test_truediv_columns(self):
+        def truediv1(lib, df):
+            return df["a"] / df["b"]
+
+        def truediv2(lib, df):
+            return df[["a", "c"]] / df[["b", "a"]]
+
+        run_and_compare(truediv1, data=self.data)
+        run_and_compare(truediv2, data=self.data)
+
+    def test_floordiv_cst(self):
+        def floordiv(lib, df):
+            return df // 2
+
+        run_and_compare(floordiv, data=self.data)
+
+    def test_floordiv_list(self):
+        def floordiv(lib, df):
+            return df // [1, 0.54, 0.24, 2.01]
+
+        run_and_compare(floordiv, data=self.data)
+
+    @pytest.mark.parametrize("fill_value", fill_values)
+    def test_floordiv_method_columns(self, fill_value):
+        def floordiv1(lib, df, fill_value):
+            return df["a"].floordiv(df["b"], fill_value=fill_value)
+
+        def floordiv2(lib, df, fill_value):
+            return df[["a", "c"]].floordiv(df[["b", "a"]], fill_value=fill_value)
+
+        run_and_compare(floordiv1, data=self.data, fill_value=fill_value)
+        run_and_compare(floordiv2, data=self.data, fill_value=fill_value)
+
+    def test_floordiv_columns(self):
+        def floordiv1(lib, df):
+            return df["a"] // df["b"]
+
+        def floordiv2(lib, df):
+            return df[["a", "c"]] // df[["b", "a"]]
+
+        run_and_compare(floordiv1, data=self.data)
+        run_and_compare(floordiv2, data=self.data)
+
+
+class TestDateTime:
+    datetime_data = {
+        "a": [1, 1, 2, 2],
+        "b": [11, 21, 12, 11],
+        "c": pd.to_datetime(
+            ["20190902", "20180913", "20190921", "20180903"], format="%Y%m%d"
+        ),
+    }
+
+    def test_dt_year(self):
+        df = pd.DataFrame(self.datetime_data)
+        ref = df["c"].dt.year
+
+        modin_df = mpd.DataFrame(self.datetime_data)
+        modin_df = modin_df["c"].dt.year
+
+        exp = to_pandas(modin_df)
+
+        df_equals(ref, exp)
+
+    def test_dt_month(self):
+        df = pd.DataFrame(self.datetime_data)
+        ref = df["c"].dt.month
+
+        modin_df = mpd.DataFrame(self.datetime_data)
+        modin_df = modin_df["c"].dt.month
+
+        exp = to_pandas(modin_df)
+
+        df_equals(ref, exp)

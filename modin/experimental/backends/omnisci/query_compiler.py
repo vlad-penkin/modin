@@ -259,7 +259,15 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
         Returns:
             A new QueryCompiler.
         """
-        return self.__constructor__(self._modin_frame.dt_year())
+        return self.__constructor__(self._modin_frame.dt_extract("year"))
+
+    def dt_month(self):
+        """Extract month from Datetime info
+
+        Returns:
+            A new QueryCompiler.
+        """
+        return self.__constructor__(self._modin_frame.dt_extract("month"))
 
     def _bin_op(self, other, op_name, **kwargs):
         level = kwargs.get("level", None)
@@ -277,6 +285,15 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
 
     def sub(self, other, **kwargs):
         return self._bin_op(other, "sub", **kwargs)
+
+    def mul(self, other, **kwargs):
+        return self._bin_op(other, "mul", **kwargs)
+
+    def floordiv(self, other, **kwargs):
+        return self._bin_op(other, "floordiv", **kwargs)
+
+    def truediv(self, other, **kwargs):
+        return self._bin_op(other, "truediv", **kwargs)
 
     def reset_index(self, **kwargs):
         level = kwargs.get("level", None)
@@ -298,6 +315,26 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
             DataFrame with updated dtypes.
         """
         return self.__constructor__(self._modin_frame.astype(col_dtypes))
+
+    def setitem(self, axis, key, value):
+        """Set the column defined by `key` to the `value` provided.
+
+        Args:
+            key: The column name to set.
+            value: The value to set the column to.
+
+        Returns:
+             A new QueryCompiler
+        """
+        if axis == 1:
+            raise NotImplementedError("setitem doesn't support axis 1")
+
+        if not isinstance(value, type(self)):
+            raise NotImplementedError("unsupported value for setitem")
+
+        return self._setitem(axis, key, value)
+
+    _setitem = PandasQueryCompiler.setitem
 
     def has_multiindex(self):
         return self._modin_frame.has_multiindex()
@@ -341,7 +378,6 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     eq = DFAlgNotSupported("eq")
     eval = DFAlgNotSupported("eval")
     first_valid_index = DFAlgNotSupported("first_valid_index")
-    floordiv = DFAlgNotSupported("floordiv")
     front = DFAlgNotSupported("front")
     ge = DFAlgNotSupported("ge")
     get_dummies = DFAlgNotSupported("get_dummies")
@@ -373,7 +409,6 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     min = DFAlgNotSupported("min")
     mod = DFAlgNotSupported("mod")
     mode = DFAlgNotSupported("mode")
-    mul = DFAlgNotSupported("mul")
     ne = DFAlgNotSupported("ne")
     negative = DFAlgNotSupported("negative")
     notna = DFAlgNotSupported("notna")
@@ -402,7 +437,6 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     to_numpy = DFAlgNotSupported("to_numpy")
     to_numeric = DFAlgNotSupported("to_numeric")
     transpose = DFAlgNotSupported("transpose")
-    truediv = DFAlgNotSupported("truediv")
     unique = DFAlgNotSupported("unique")
     update = DFAlgNotSupported("update")
     var = DFAlgNotSupported("var")

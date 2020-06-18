@@ -354,12 +354,20 @@ class DataFrameGroupBy(object):
                 raise SpecificationError("nested renamer is not supported")
             else:
                 # We convert to the string version of the
-                func_dict = {k: v if not callable(v) or v.__name__ not in dir(self) else v.__name__ for k, v in arg.items()}
+                func_dict = {
+                    k: v
+                    if not callable(v) or v.__name__ not in dir(self)
+                    else v.__name__
+                    for k, v in arg.items()
+                }
                 from .concat import concat
+
                 return type(self._df)(
                     query_compiler=self._df[
                         list(func_dict.keys())
-                    ]._query_compiler.groupby_dict_agg(self._by, func_dict, self._kwargs, kwargs, drop=self._drop)
+                    ]._query_compiler.groupby_dict_agg(
+                        self._by, func_dict, self._kwargs, kwargs, drop=self._drop
+                    )
                 )
         return self._apply_agg_function(
             lambda df: df.aggregate(arg, *args, **kwargs), drop=self._as_index
