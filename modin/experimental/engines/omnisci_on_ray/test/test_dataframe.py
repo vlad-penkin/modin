@@ -308,6 +308,22 @@ class TestGroupby:
 
         df_equals(ref, exp)
 
+    @pytest.mark.parametrize("as_index", bool_arg_values)
+    def test_taxi_q3_concat(self, as_index):
+        df = pd.DataFrame(self.taxi_data)
+        df = pd.concat([df])
+        ref = df.groupby(["b", df["c"].dt.year], as_index=as_index).size()
+
+        modin_df = mpd.DataFrame(self.taxi_data)
+        modin_df = mpd.concat([modin_df])
+        modin_df = modin_df.groupby(
+            ["b", modin_df["c"].dt.year], as_index=as_index
+        ).size()
+
+        exp = to_pandas(modin_df)
+
+        df_equals(ref, exp)
+
     def test_groupby_expr_col(self):
         def groupby(df, **kwargs):
             df = df.loc[:, ["b", "c"]]
