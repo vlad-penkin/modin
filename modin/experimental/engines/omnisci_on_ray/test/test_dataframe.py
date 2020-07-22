@@ -60,6 +60,22 @@ class TestCSV:
             rm = to_pandas(mpd.read_csv(csv_file, engine='arrow', **kwargs))
             #TODO: df_equals(rp, rm)  #  needs inexact comparison
 
+    def test_csv_fillna(self):
+        csv_file = os.path.join(self.root, "examples/data/boston_housing.csv")
+        for kwargs in (
+            {"skiprows": 1, "names": ["index", "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "PRICE", ],
+             "dtype": {'index': 'int64', "CRIM": 'float64', "ZN": 'float64', 'INDUS': 'float64', 'CHAS': 'float64', 'NOX': 'float64', 'RM': 'float64',
+             'AGE': 'float64', 'DIS': 'float64', 'RAD': 'float64', 'TAX': 'float64', 'PTRATIO': 'float64', 'B': 'float64', 'LSTAT': 'float64', 'PRICE': 'float64'}
+            },
+        ):
+            rp = pd.read_csv(csv_file, **kwargs)
+            rp = rp["CRIM"].fillna(1000)
+            rm = mpd.read_csv(csv_file, engine='arrow', **kwargs)
+            #print(rm.dtypes)
+            rm = rm["CRIM"].fillna(1000)
+            df_equals(rp, rm)
+
+
     def test_time_parsing(self):
         csv_file = os.path.join(self.root, "modin/pandas/test/data", "test_time_parsing.csv")
         for kwargs in (
@@ -99,7 +115,7 @@ class TestMasks:
 
 
 class TestFillna:
-    data = {"a": [1, 1, None], "b": [None, None, 2], "c": [3, None, None]}
+    data = {"a": [1, 1, None], "b": [None, None, 2], "c": [3, None, None], "d": [3.6, None, 4.8]}
     values = [1, {"a": 1, "c": 3}, {"a": 1, "b": 2, "c": 3}]
 
     @pytest.mark.parametrize("value", values)
@@ -114,6 +130,13 @@ class TestFillna:
             df["a"] = df["a"] == 1
             df["a"] = df["a"].fillna(False)
             return df
+
+        run_and_compare(fillna, data=self.data)
+
+    def test_fillna_double(self):
+        def fillna(df, **kwargs):
+            print(df.dtypes)
+            return df["d"].fillna(100)
 
         run_and_compare(fillna, data=self.data)
 
