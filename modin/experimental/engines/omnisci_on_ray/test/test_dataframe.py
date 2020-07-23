@@ -138,6 +138,24 @@ class TestCSV:
             rm = rm["CRIM"].fillna(1000)
             df_equals(rp, rm)
 
+    def test_h2o_q1_from_csv(self):
+        csv_file = os.path.join(self.root, "h2o_short.csv")
+
+        df = pd.read_csv(csv_file)
+        ref = df.groupby(["id1"], observed=True).agg({"v1": "sum"})
+        ref.reset_index(inplace=True)
+
+        modin_df = mpd.read_csv(csv_file)
+        modin_df = modin_df.groupby(["id1"], observed=True, as_index=False).agg(
+            {"v1": "sum"}
+        )
+
+        exp = to_pandas(modin_df)
+        exp["id1"] = exp["id1"].astype("category")
+
+        df_equals(ref, exp)
+
+
 
 class TestMasks:
     data = {"a": [1, 1, None], "b": [None, None, 2], "c": [3, None, None]}
