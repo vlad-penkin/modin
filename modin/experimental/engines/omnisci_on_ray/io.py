@@ -18,6 +18,7 @@ from modin.error_message import ErrorMessage
 
 from pyarrow.csv import read_csv, ParseOptions, ConvertOptions, ReadOptions
 import pyarrow as pa
+import os
 
 
 class OmnisciOnRayIO(RayIO):
@@ -145,6 +146,10 @@ class OmnisciOnRayIO(RayIO):
             if (type(parse_dates) is list) and type(column_types) is dict:
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
+
+            if os.getenv("OMP_NUM_THREADS") == "1":
+                import warnings
+                warnings.warn("[Modin] Env var 'OMP_NUM_THREADS' == 1, which is inefficient with read_csv()")
 
             po = ParseOptions(
                 delimiter=sep if sep else "\\s+" if delim_whitespace else delimiter,
