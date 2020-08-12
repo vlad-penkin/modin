@@ -464,9 +464,7 @@ class TestGroupby:
                 .sort_values(by=["c", 0], ignore_index=True, ascending=[True, False])
             )
 
-        # Currently reset_index for dataframe with multi-index is defaulting to pandas.
-        # This breaks lazy execution.
-        run_and_compare(taxi_q4, data=self.taxi_data, force_lazy=False)
+        run_and_compare(taxi_q4, data=self.taxi_data)
 
     h2o_data = {
         "id1": ["id1", "id2", "id3", "id1", "id2", "id3", "id1", "id2", "id3", "id1"],
