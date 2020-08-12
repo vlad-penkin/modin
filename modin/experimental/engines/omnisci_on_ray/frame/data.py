@@ -963,9 +963,7 @@ class OmnisciOnRayFrame(BasePandasFrame):
                 raise NotImplementedError(
                     "default index reset with no drop is not supported"
                 )
-            new_columns = Index.__new__(
-                Index, data=self._table_cols, dtype=self.columns.dtype
-            )
+            new_columns = Index.__new__(Index, data=self._table_cols, dtype="O")
             return self.__constructor__(
                 columns=new_columns,
                 dtypes=self._dtypes_for_cols(None, new_columns),

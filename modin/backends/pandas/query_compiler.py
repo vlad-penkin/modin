@@ -476,6 +476,10 @@ class PandasQueryCompiler(BaseQueryCompiler):
             A new QueryCompiler with updated data and reset index.
         """
         drop = kwargs.get("drop", False)
+        level = kwargs.get("level", None)
+        # TODO Implement level
+        if level is not None or self.has_multiindex():
+            return self.default_to_pandas(pandas.DataFrame.reset_index, **kwargs)
         if not drop:
             new_column_name = (
                 self.index.name
