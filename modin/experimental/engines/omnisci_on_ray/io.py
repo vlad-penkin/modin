@@ -147,10 +147,6 @@ class OmnisciOnRayIO(RayIO):
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
 
-            if os.getenv("OMP_NUM_THREADS") == "1":
-                import warnings
-                warnings.warn("[Modin] Env var 'OMP_NUM_THREADS' == 1, which is inefficient with read_csv()")
-
             po = ParseOptions(
                 delimiter=sep if sep else "\\s+" if delim_whitespace else delimiter,
                 quote_char=quotechar,
@@ -172,7 +168,7 @@ class OmnisciOnRayIO(RayIO):
                 auto_dict_max_cardinality=None,
             )
             ro = ReadOptions(
-                use_threads=True,
+                use_threads=os.getenv("OMP_NUM_THREADS") != "1",
                 block_size=None,
                 skip_rows=skiprows,
                 column_names=names,
