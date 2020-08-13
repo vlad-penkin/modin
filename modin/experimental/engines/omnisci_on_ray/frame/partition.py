@@ -47,17 +47,13 @@ class OmnisciOnRayFramePartition(BaseFramePartition):
     @classmethod
     def put(cls, obj):
         return OmnisciOnRayFramePartition(
-            object_id=ray.put(obj),
-            # frame_id = None,
-            length=len(obj.index),
-            width=len(obj.columns),
+            object_id=ray.put(obj), length=len(obj.index), width=len(obj.columns),
         )
 
     @classmethod
     def put_arrow(cls, obj):
         return OmnisciOnRayFramePartition(
             object_id=ray.put(None),
-            frame_id=OmnisciServer().put_arrow_to_omnisci(obj),
             arrow_table=obj,
             length=len(obj),
             width=len(obj.columns),
