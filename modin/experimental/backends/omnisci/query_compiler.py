@@ -465,9 +465,11 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
         Transposes this QueryCompiler if it has a single row but multiple columns.
 
         This method should be called for QueryCompilers representing a Series object,
-        i.e. self.is_series() should be True.
+        i.e. self.is_series_like() should be True.
 
-        Returns:
+        Returns
+        -------
+        BaseQueryCompiler
             Transposed new QueryCompiler or self.
         """
         if self._shape_hint == "column":
@@ -490,7 +492,8 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
         self._shape_hint = "column"
         return self
 
-    def is_series(self):
+    def is_series_like(self):
+        """Return True if QueryCompiler has a single column or row"""
         if self._shape_hint is not None:
             return True
         return len(self.columns) == 1 or len(self.index) == 1

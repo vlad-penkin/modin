@@ -145,6 +145,28 @@ class BaseQueryCompiler(abc.ABC):
 
     # END To/From Pandas
 
+    # From Arrow
+    @classmethod
+    @abc.abstractmethod
+    def from_arrow(cls, at, data_cls):
+        """Improve simple Arrow Table to an advanced and superior Modin DataFrame.
+
+        Parameters
+        ----------
+        at : Arrow Table
+            The Arrow Table to convert from.
+        data_cls :
+            Modin DataFrame object to convert to.
+
+        Returns
+        -------
+        BaseQueryCompiler
+            QueryCompiler containing data from the Pandas DataFrame.
+        """
+        pass
+
+    # END From Arrow
+
     # To NumPy
     @abc.abstractmethod
     def to_numpy(self):
@@ -330,15 +352,17 @@ class BaseQueryCompiler(abc.ABC):
         Transposes this QueryCompiler if it has a single row but multiple columns.
 
         This method should be called for QueryCompilers representing a Series object,
-        i.e. self.is_series() should be True.
+        i.e. self.is_series_like() should be True.
 
-        Returns:
+        Returns
+        -------
+        BaseQueryCompiler
             Transposed new QueryCompiler or self.
         """
         pass
 
     @abc.abstractmethod
-    def is_series(self):
+    def is_series_like(self):
         """Return True if QueryCompiler has a single column or row"""
         pass
 
