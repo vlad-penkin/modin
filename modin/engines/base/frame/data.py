@@ -914,6 +914,9 @@ class BasePandasFrame(object):
         """
         Joins a pair of index objects (columns or rows) by a given strategy.
 
+        Unlike Index.join() in Pandas, if axis is 1, the sort is
+        False, and how is "outer", the result will _not_ be sorted.
+
         Parameters
         ----------
             axis : 0 or 1
@@ -930,14 +933,21 @@ class BasePandasFrame(object):
         Index
             Joined indices.
         """
+
+        def merge_index(obj1, obj2):
+            if axis == 1 and how == "outer" and not sort:
+                return obj1.union(obj2, sort=False)
+            else:
+                return obj1.join(obj2, how=how, sort=sort)
+
         if isinstance(other_index, list):
             joined_obj = self.columns if axis else self.index
             # TODO: revisit for performance
             for obj in other_index:
-                joined_obj = joined_obj.join(obj, how=how, sort=sort)
+                joined_obj = merge_index(joined_obj, obj)
             return joined_obj
         if axis:
-            return self.columns.join(other_index, how=how, sort=sort)
+            return merge_index(self.columns, other_index)
         else:
             return self.index.join(other_index, how=how, sort=sort)
 
@@ -1744,17 +1754,23 @@ class BasePandasFrame(object):
     def from_arrow(cls, at):
         """Improve simple Arrow Table to an advanced and superior Modin DataFrame.
 
-        Args:
-            at: Arrow Table object.
+        Parameters
+        ----------
+            at : Arrow Table
+                The Arrow Table to convert from.
 
-        Returns:
+        Returns
+        -------
+        BasePandasFrame
             A new dataframe.
         """
-        new_frame, new_lengths, new_widths = cls._frame_mgr_cls.from_arrow(at, True)
+        new_frame, new_lengths, new_widths = cls._frame_mgr_cls.from_arrow(
+            at, return_dims=True
+        )
         new_columns = Index.__new__(Index, data=at.column_names, dtype="O")
         new_index = Index.__new__(RangeIndex, data=range(at.num_rows))
         new_dtypes = pandas.Series(
-            [cls._arrow_type_to_dtype(i.type) for i in at.columns],
+            [cls._arrow_type_to_dtype(col.type) for col in at.columns],
             index=at.column_names,
         )
         return cls(
@@ -1792,6 +1808,7 @@ class BasePandasFrame(object):
             )
             df.index = self.index
             df.columns = self.columns
+
         return df
 
     def to_numpy(self):

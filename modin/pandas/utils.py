@@ -40,11 +40,16 @@ def from_pandas(df):
 
 
 def from_arrow(at):
-    """Converts an arrow Table to a Modin DataFrame.
-    Args:
-        at (pyarrow table): The Arrow table to convert.
+    """Converts an Arrow Table to a Modin DataFrame.
 
-    Returns:
+    Parameters
+    ----------
+        at : Arrow Table
+            The Arrow Table to convert from.
+
+    Returns
+    -------
+    DataFrame
         A new Modin DataFrame object.
     """
     from modin.data_management.dispatcher import EngineDispatcher

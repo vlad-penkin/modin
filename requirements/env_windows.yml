@@ -27,7 +27,6 @@ dependencies:
     - pytest
     - coverage<5.0
     - pytest-cov
-    - pytest-testmon
     - pytest-custom_exit_code
     - pytest-xdist
     - feather-format
@@ -38,3 +37,4 @@ dependencies:
     - sqlalchemy
     - msgpack<1.0
     - cloudpickle
+    - rpyc

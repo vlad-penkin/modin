@@ -144,7 +144,7 @@ class Series(BasePandasDataset):
             isinstance(new_query_compiler, type(self._query_compiler))
             or type(new_query_compiler) in self._query_compiler.__class__.__bases__
         ), "Invalid Query Compiler object: {}".format(type(new_query_compiler))
-        if not inplace and new_query_compiler.is_series():
+        if not inplace and new_query_compiler.is_series_like():
             return Series(query_compiler=new_query_compiler)
         elif not inplace:
             # This can happen with things like `reset_index` where we can add columns.
@@ -488,22 +488,29 @@ class Series(BasePandasDataset):
         # a list or a dictionary, which means that the return type won't change from
         # type(self), so we catch that error and use `type(self).__name__` for the return
         # type.
-        # Because a `Series` cannot be empty in pandas, we create a "dummy" `Series` to
-        # do the error checking and determining the return type.
+        # We create a "dummy" `Series` to do the error checking and determining
+        # the return type.
         try:
             return_type = type(
-                getattr(pandas.Series([""], index=self.index[:1]), apply_func)(
+                getattr(pandas.Series("", index=self.index[:1]), apply_func)(
                     func, *args, **kwds
                 )
             ).__name__
         except Exception:
-            return_type = type(self).__name__
+            try:
+                return_type = type(
+                    getattr(pandas.Series(0, index=self.index[:1]), apply_func)(
+                        func, *args, **kwds
+                    )
+                ).__name__
+            except Exception:
+                return_type = type(self).__name__
         if (
             isinstance(func, str)
             or is_list_like(func)
             or return_type not in ["DataFrame", "Series"]
         ):
-            query_compiler = super(Series, self).apply(func, *args, **kwds)
+            result = super(Series, self).apply(func, *args, **kwds)
         else:
             # handle ufuncs and lambdas
             if kwds or args and not isinstance(func, np.ufunc):
@@ -516,12 +523,17 @@ class Series(BasePandasDataset):
             with np.errstate(all="ignore"):
                 if isinstance(f, np.ufunc):
                     return f(self)
-                query_compiler = self.map(f)._query_compiler
+                result = self.map(f)._query_compiler
         if return_type not in ["DataFrame", "Series"]:
-            return query_compiler.to_pandas().squeeze()
+            # sometimes result can be not a query_compiler, but scalar (for example
+            # for sum or count functions)
+            if isinstance(result, type(self._query_compiler)):
+                return result.to_pandas().squeeze()
+            else:
+                return result
         else:
             result = getattr(sys.modules[self.__module__], return_type)(
-                query_compiler=query_compiler
+                query_compiler=result
             )
             if result.name == self.index[0]:
                 result.name = None
@@ -2235,7 +2247,10 @@ class CategoryMethods(object):
 
     @categories.setter
     def categories(self, categories):
-        self._series._default_to_pandas(pandas.Series.cat).categories = categories
+        def set_categories(series, categories):
+            series.cat.categories = categories
+
+        self._series._default_to_pandas(set_categories, categories=categories)
 
     @property
     def ordered(self):
@@ -2243,9 +2258,7 @@ class CategoryMethods(object):
 
     @property
     def codes(self):
-        if hasattr(self._query_compiler, "cat_codes"):
-            return Series(query_compiler=self._query_compiler.cat_codes())
-        return self._series._default_to_pandas(pandas.Series.cat).codes
+        return Series(query_compiler=self._query_compiler.cat_codes())
 
     def rename_categories(self, new_categories, inplace=False):
         return self._default_to_pandas(

@@ -173,6 +173,14 @@ test_data_small_keys = list(test_data_small.keys())
 test_data_with_duplicates_values = list(test_data_with_duplicates.values())
 test_data_with_duplicates_keys = list(test_data_with_duplicates.keys())
 
+test_data_categorical = {
+    "ordered": pandas.Categorical(list("testdata"), ordered=True),
+    "unordered": pandas.Categorical(list("testdata"), ordered=False),
+}
+
+test_data_categorical_values = list(test_data_categorical.values())
+test_data_categorical_keys = list(test_data_categorical.keys())
+
 numeric_dfs = [
     "empty_data",
     "columns_only",
@@ -584,8 +592,14 @@ def check_df_columns_have_nans(df, cols):
     """
     return (
         pandas.api.types.is_list_like(cols)
-        and any(x in df.columns and df[x].hasnans for x in cols)
-        or not pandas.api.types.is_list_like(cols)
+        and (
+            any(isinstance(x, str) and x in df.columns and df[x].hasnans for x in cols)
+            or any(
+                isinstance(x, pd.Series) and x._parent is df and x.hasnans for x in cols
+            )
+        )
+    ) or (
+        not pandas.api.types.is_list_like(cols)
         and cols in df.columns
         and df[cols].hasnans
     )

@@ -179,6 +179,8 @@ class PandasQueryCompiler(BaseQueryCompiler):
 
         result = pandas_op(self.to_pandas(), *args, **kwargs)
         if isinstance(result, pandas.Series):
+            if result.name is None:
+                result.name = "__reduced__"
             result = result.to_frame()
         if isinstance(result, pandas.DataFrame):
             return self.from_pandas(result, type(self._modin_frame))
@@ -520,9 +522,11 @@ class PandasQueryCompiler(BaseQueryCompiler):
         Transposes this QueryCompiler if it has a single row but multiple columns.
 
         This method should be called for QueryCompilers representing a Series object,
-        i.e. self.is_series() should be True.
+        i.e. self.is_series_like() should be True.
 
-        Returns:
+        Returns
+        -------
+        PandasQueryCompiler
             Transposed new QueryCompiler or self.
         """
         if len(self.columns) != 1 or (
@@ -531,7 +535,8 @@ class PandasQueryCompiler(BaseQueryCompiler):
             return self.transpose()
         return self
 
-    def is_series(self):
+    def is_series_like(self):
+        """Return True if QueryCompiler has a single column or row"""
         return len(self.columns) == 1 or len(self.index) == 1
 
     # END Transpose
@@ -2292,6 +2297,12 @@ class PandasQueryCompiler(BaseQueryCompiler):
             by=rows, axis=1, ascending=ascending, kind=kind, na_position=na_position,
         ).columns
         return self.reindex(1, new_columns)
+
+    # Cat operations
+    def cat_codes(self):
+        return self.default_to_pandas(lambda df: df[df.columns[0]].cat.codes)
+
+    # END Cat operations
 
     def has_multiindex(self):
         return isinstance(self.index, pandas.MultiIndex)
