@@ -14,7 +14,6 @@
 import pandas
 
 from modin.engines.base.frame.partition import BaseFramePartition
-from .omnisci_worker import OmnisciServer
 import pyarrow
 
 import ray
