@@ -553,7 +553,7 @@ class OmnisciOnRayFrame(BasePandasFrame):
         return new_frame
 
     def bin_op(self, other, op_name, **kwargs):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, float, str)):
             value_expr = LiteralExpr(other)
             exprs = self._index_exprs()
             for col in self.columns:
@@ -621,6 +621,8 @@ class OmnisciOnRayFrame(BasePandasFrame):
                 index_cols=self._index_cols,
                 force_execution_mode=self._force_execution_mode,
             )
+        else:
+            raise NotImplementedError(f"unsupported operand type: {type(other)}")
 
     def insert(self, loc, column, value):
         assert column not in self._table_cols

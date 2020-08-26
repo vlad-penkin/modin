@@ -25,6 +25,8 @@ from modin.pandas.test.utils import (
     df_equals,
     bool_arg_values,
     to_pandas,
+    test_data_values,
+    test_data_keys,
 )
 
 
@@ -48,21 +50,32 @@ def run_and_compare(
 ):
     if data2 is None:
         pandas_df = pd.DataFrame(data, columns=list(data.keys()))
-        ref_res = fn(df=pandas_df, lib=pd, **kwargs)
         modin_df = mpd.DataFrame(data, columns=list(data.keys()))
         if force_lazy:
             set_execution_mode(modin_df, "lazy")
         elif force_arrow_execute:
             set_execution_mode(modin_df, "arrow")
-        exp_res = fn(df=modin_df, lib=mpd, **kwargs)
-        if force_arrow_execute:
-            set_execution_mode(exp_res, "arrow", allow_subqueries)
-        elif force_lazy:
-            set_execution_mode(exp_res, None, allow_subqueries)
+
+        try:
+            ref_res = fn(df=pandas_df, lib=pd, **kwargs)
+        except Exception as e:
+            with pytest.raises(type(e)):
+                exp_res = fn(df=modin_df, lib=mpd, **kwargs)
+                if force_arrow_execute:
+                    set_execution_mode(exp_res, "arrow", allow_subqueries)
+                elif force_lazy:
+                    set_execution_mode(exp_res, None, allow_subqueries)
+                index = exp_res.index
+        else:
+            exp_res = fn(df=modin_df, lib=mpd, **kwargs)
+            if force_arrow_execute:
+                set_execution_mode(exp_res, "arrow", allow_subqueries)
+            elif force_lazy:
+                set_execution_mode(exp_res, None, allow_subqueries)
+            df_equals(ref_res, exp_res)
     else:
         pandas_df1 = pd.DataFrame(data, columns=list(data.keys()))
         pandas_df2 = pd.DataFrame(data2, columns=list(data2.keys()))
-        ref_res = fn(df1=pandas_df1, df2=pandas_df2, lib=pd, **kwargs)
         modin_df1 = mpd.DataFrame(data, columns=list(data.keys()))
         modin_df2 = mpd.DataFrame(data2, columns=list(data2.keys()))
         if force_lazy:
@@ -71,12 +84,24 @@ def run_and_compare(
         elif force_arrow_execute:
             set_execution_mode(modin_df1, "arrow")
             set_execution_mode(modin_df2, "arrow")
-        exp_res = fn(df1=modin_df1, df2=modin_df2, lib=mpd, **kwargs)
-        if force_arrow_execute:
-            set_execution_mode(exp_res, "arrow", allow_subqueries)
-        elif force_lazy:
-            set_execution_mode(exp_res, None, allow_subqueries)
-    df_equals(ref_res, exp_res)
+
+        try:
+            ref_res = fn(df1=pandas_df1, df2=pandas_df2, lib=pd, **kwargs)
+        except Exception as e:
+            with pytest.raises(type(e)):
+                exp_res = fn(df1=modin_df1, df2=modin_df2, lib=mpd, **kwargs)
+                if force_arrow_execute:
+                    set_execution_mode(exp_res, "arrow", allow_subqueries)
+                elif force_lazy:
+                    set_execution_mode(exp_res, None, allow_subqueries)
+                index = exp_res.index
+        else:
+            exp_res = fn(df1=modin_df1, df2=modin_df2, lib=mpd, **kwargs)
+            if force_arrow_execute:
+                set_execution_mode(exp_res, "arrow", allow_subqueries)
+            elif force_lazy:
+                set_execution_mode(exp_res, None, allow_subqueries)
+            df_equals(ref_res, exp_res)
 
 
 class TestCSV:
@@ -1038,6 +1063,15 @@ class TestBinaryOp:
 
         run_and_compare(cmp1, data=self.cmp_data, cmp_fn=cmp_fn)
         run_and_compare(cmp2, data=self.cmp_data, cmp_fn=cmp_fn)
+
+    @pytest.mark.parametrize("cmp_fn", cmp_fn_values)
+    @pytest.mark.parametrize("value", [2, 2.2, "a"])
+    @pytest.mark.parametrize("data", test_data_values, ids=test_data_keys)
+    def test_cmp_mixed_types(self, cmp_fn, value, data):
+        def cmp(df, cmp_fn, value, **kwargs):
+            return getattr(df, cmp_fn)(value)
+
+        run_and_compare(cmp, data=data, cmp_fn=cmp_fn, value=value)
 
 
 class TestDateTime:
