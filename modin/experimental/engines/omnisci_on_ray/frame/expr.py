@@ -17,6 +17,11 @@ from pandas.core.dtypes.common import (
     _get_dtype,
     is_float_dtype,
     is_integer_dtype,
+    is_numeric_dtype,
+    is_string_like_dtype,
+    is_categorical_dtype,
+    is_datetime64_any_dtype,
+    is_bool_dtype,
 )
 import numpy as np
 
@@ -89,6 +94,10 @@ class BaseExpr(abc.ABC):
     def bin_op(self, other, op_name):
         if op_name not in self.binary_operations:
             raise NotImplementedError(f"unsupported binary operation {op_name}")
+
+        if is_cmp_op(op_name):
+            return self._cmp_op(other, op_name)
+
         # True division may require prior cast to float to avoid integer division
         if op_name == "truediv":
             if is_integer_dtype(self._dtype) and is_integer_dtype(other._dtype):
@@ -120,6 +129,38 @@ class BaseExpr(abc.ABC):
 
     def floor(self):
         return OpExpr("FLOOR", [self], _get_dtype(int))
+
+    def _cmp_op(self, other, op_name):
+        lhs_dtype_class = self._get_dtype_cmp_class(self._dtype)
+        rhs_dtype_class = self._get_dtype_cmp_class(other._dtype)
+        res_dtype = _get_dtype(bool)
+        # In OmniSci comparison with NULL always results in NULL,
+        # but in Pandas it is True for 'ne' comparison and False
+        # for others.
+        # Also Pandas allow 'eq' and 'ne' comparison for values
+        # of incompatible types which doesn't work in OmniSci.
+        if lhs_dtype_class != rhs_dtype_class:
+            if op_name == "eq" or op_name == "ne":
+                return LiteralExpr(op_name == "ne")
+            else:
+                raise TypeError(
+                    f"Invalid comparison between {self._dtype} and {other._dtype}"
+                )
+        else:
+            cmp = OpExpr(self.binary_operations[op_name], [self, other], res_dtype)
+            return build_if_then_else(
+                self.is_null(), LiteralExpr(op_name == "ne"), cmp, res_dtype
+            )
+
+    @staticmethod
+    def _get_dtype_cmp_class(dtype):
+        if is_numeric_dtype(dtype) or is_bool_dtype(dtype):
+            return "numeric"
+        if is_string_like_dtype(dtype) or is_categorical_dtype(dtype):
+            return "string"
+        if is_datetime64_any_dtype(dtype):
+            return "datetime"
+        return "other"
 
     def _get_bin_op_res_type(self, op_name, lhs_dtype, rhs_dtype):
         if op_name in self.preserve_dtype_math_ops:
