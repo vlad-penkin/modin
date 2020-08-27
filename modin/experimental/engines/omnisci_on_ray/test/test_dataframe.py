@@ -48,60 +48,57 @@ def run_and_compare(
     allow_subqueries=False,
     **kwargs
 ):
-    if data2 is None:
-        pandas_df = pd.DataFrame(data)
-        modin_df = mpd.DataFrame(data)
-        if force_lazy:
-            set_execution_mode(modin_df, "lazy")
-        elif force_arrow_execute:
-            set_execution_mode(modin_df, "arrow")
+    def run_modin(
+        fn, data, data2, force_lazy, force_arrow_execute, allow_subqueries, **kwargs
+    ):
+        kwargs["df1"] = mpd.DataFrame(data)
+        kwargs["df2"] = mpd.DataFrame(data2)
+        kwargs["df"] = kwargs["df1"]
 
-        try:
-            ref_res = fn(df=pandas_df, lib=pd, **kwargs)
-        except Exception as e:
-            with pytest.raises(type(e)):
-                exp_res = fn(df=modin_df, lib=mpd, **kwargs)
-                if force_arrow_execute:
-                    set_execution_mode(exp_res, "arrow", allow_subqueries)
-                elif force_lazy:
-                    set_execution_mode(exp_res, None, allow_subqueries)
-                index = exp_res.index
-        else:
-            exp_res = fn(df=modin_df, lib=mpd, **kwargs)
-            if force_arrow_execute:
-                set_execution_mode(exp_res, "arrow", allow_subqueries)
-            elif force_lazy:
-                set_execution_mode(exp_res, None, allow_subqueries)
-            df_equals(ref_res, exp_res)
+        if force_lazy:
+            set_execution_mode(kwargs["df1"], "lazy")
+            set_execution_mode(kwargs["df2"], "lazy")
+        elif force_arrow_execute:
+            set_execution_mode(kwargs["df1"], "arrow")
+            set_execution_mode(kwargs["df2"], "arrow")
+
+        exp_res = fn(lib=mpd, **kwargs)
+
+        if force_arrow_execute:
+            set_execution_mode(exp_res, "arrow", allow_subqueries)
+        elif force_lazy:
+            set_execution_mode(exp_res, None, allow_subqueries)
+
+        return exp_res
+
+    try:
+        kwargs["df1"] = pd.DataFrame(data)
+        kwargs["df2"] = pd.DataFrame(data2)
+        kwargs["df"] = kwargs["df1"]
+        ref_res = fn(lib=pd, **kwargs)
+    except Exception as e:
+        with pytest.raises(type(e)):
+            exp_res = run_modin(
+                fn=fn,
+                data=data,
+                data2=data2,
+                force_lazy=force_lazy,
+                force_arrow_execute=force_arrow_execute,
+                allow_subqueries=allow_subqueries,
+                **kwargs
+            )
+            index = exp_res.index
     else:
-        pandas_df1 = pd.DataFrame(data)
-        pandas_df2 = pd.DataFrame(data2)
-        modin_df1 = mpd.DataFrame(data)
-        modin_df2 = mpd.DataFrame(data2)
-        if force_lazy:
-            set_execution_mode(modin_df1, "lazy")
-            set_execution_mode(modin_df2, "lazy")
-        elif force_arrow_execute:
-            set_execution_mode(modin_df1, "arrow")
-            set_execution_mode(modin_df2, "arrow")
-
-        try:
-            ref_res = fn(df1=pandas_df1, df2=pandas_df2, lib=pd, **kwargs)
-        except Exception as e:
-            with pytest.raises(type(e)):
-                exp_res = fn(df1=modin_df1, df2=modin_df2, lib=mpd, **kwargs)
-                if force_arrow_execute:
-                    set_execution_mode(exp_res, "arrow", allow_subqueries)
-                elif force_lazy:
-                    set_execution_mode(exp_res, None, allow_subqueries)
-                index = exp_res.index
-        else:
-            exp_res = fn(df1=modin_df1, df2=modin_df2, lib=mpd, **kwargs)
-            if force_arrow_execute:
-                set_execution_mode(exp_res, "arrow", allow_subqueries)
-            elif force_lazy:
-                set_execution_mode(exp_res, None, allow_subqueries)
-            df_equals(ref_res, exp_res)
+        exp_res = run_modin(
+            fn=fn,
+            data=data,
+            data2=data2,
+            force_lazy=force_lazy,
+            force_arrow_execute=force_arrow_execute,
+            allow_subqueries=allow_subqueries,
+            **kwargs
+        )
+        df_equals(ref_res, exp_res)
 
 
 class TestCSV:
