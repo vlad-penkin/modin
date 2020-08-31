@@ -49,8 +49,8 @@ def run_and_compare(
     **kwargs
 ):
     if data2 is None:
-        pandas_df = pd.DataFrame(data, columns=list(data.keys()))
-        modin_df = mpd.DataFrame(data, columns=list(data.keys()))
+        pandas_df = pd.DataFrame(data)
+        modin_df = mpd.DataFrame(data)
         if force_lazy:
             set_execution_mode(modin_df, "lazy")
         elif force_arrow_execute:
@@ -74,10 +74,10 @@ def run_and_compare(
                 set_execution_mode(exp_res, None, allow_subqueries)
             df_equals(ref_res, exp_res)
     else:
-        pandas_df1 = pd.DataFrame(data, columns=list(data.keys()))
-        pandas_df2 = pd.DataFrame(data2, columns=list(data2.keys()))
-        modin_df1 = mpd.DataFrame(data, columns=list(data.keys()))
-        modin_df2 = mpd.DataFrame(data2, columns=list(data2.keys()))
+        pandas_df1 = pd.DataFrame(data)
+        pandas_df2 = pd.DataFrame(data2)
+        modin_df1 = mpd.DataFrame(data)
+        modin_df2 = mpd.DataFrame(data2)
         if force_lazy:
             set_execution_mode(modin_df1, "lazy")
             set_execution_mode(modin_df2, "lazy")
@@ -276,6 +276,12 @@ class TestMasks:
             return df.iloc[[0, 1]]
 
         run_and_compare(mask, data=self.data, allow_subqueries=True)
+
+    def test_empty(self):
+        def empty(df, **kwargs):
+            return df
+
+        run_and_compare(empty, data=None)
 
 
 class TestFillna:
