@@ -103,7 +103,7 @@ class OmnisciOnRayFrame(BasePandasFrame):
         # names are used in OmniSci tables and corresponding Arrow tables.
         # If we import Arrow table, we have to rename its columns for
         # proper processing.
-        if self._has_arrow_table():
+        if self._has_arrow_table() and self._partitions.size > 0:
             assert self._partitions.size == 1
             table = self._partitions[0][0].get()
             if table.column_names[0] != f"F_{self._table_cols[0]}":
@@ -861,8 +861,11 @@ class OmnisciOnRayFrame(BasePandasFrame):
 
     def _execute_arrow(self):
         if isinstance(self._op, FrameNode):
-            assert self._partitions.size == 1
-            return self._partitions[0][0].get()
+            if self._partitions.size == 0:
+                return pyarrow.Table()
+            else:
+                assert self._partitions.size == 1
+                return self._partitions[0][0].get()
         elif isinstance(self._op, MaskNode):
             return self._op.input[0]._arrow_row_slice(self._op.row_numeric_idx)
         elif isinstance(self._op, TransformNode):
@@ -922,22 +925,30 @@ class OmnisciOnRayFrame(BasePandasFrame):
 
     def _build_index_cache(self):
         assert isinstance(self._op, FrameNode)
-        assert self._partitions.size == 1
-        obj = self._partitions[0][0].get()
-        if isinstance(obj, (pd.DataFrame, pd.Series)):
-            self._index_cache = obj.index
+
+        if self._partitions.size == 0:
+            self._index_cache = Index.__new__(Index)
         else:
-            assert isinstance(obj, pyarrow.Table)
-            if self._index_cols is None:
-                self._index_cache = Index.__new__(RangeIndex, data=range(obj.num_rows))
+            assert self._partitions.size == 1
+            obj = self._partitions[0][0].get()
+            if isinstance(obj, (pd.DataFrame, pd.Series)):
+                self._index_cache = obj.index
             else:
-                index_at = obj.drop([f"F_{col}" for col in self.columns])
-                index_df = index_at.to_pandas()
-                index_df.set_index(
-                    [f"F_{col}" for col in self._index_cols], inplace=True
-                )
-                index_df.index.rename(self._index_names(self._index_cols), inplace=True)
-                self._index_cache = index_df.index
+                assert isinstance(obj, pyarrow.Table)
+                if self._index_cols is None:
+                    self._index_cache = Index.__new__(
+                        RangeIndex, data=range(obj.num_rows)
+                    )
+                else:
+                    index_at = obj.drop([f"F_{col}" for col in self.columns])
+                    index_df = index_at.to_pandas()
+                    index_df.set_index(
+                        [f"F_{col}" for col in self._index_cols], inplace=True
+                    )
+                    index_df.index.rename(
+                        self._index_names(self._index_cols), inplace=True
+                    )
+                    self._index_cache = index_df.index
 
     def _get_index(self):
         self._execute()
