@@ -16,7 +16,7 @@ from modin.experimental.backends.omnisci.query_compiler import DFAlgQueryCompile
 from .partition_manager import OmnisciOnRayFrameManager
 
 from pandas.core.index import ensure_index, Index, MultiIndex, RangeIndex
-from pandas.core.dtypes.common import _get_dtype, is_list_like
+from pandas.core.dtypes.common import _get_dtype, is_list_like, is_bool_dtype
 import pandas as pd
 
 from .df_algebra import (
@@ -27,7 +27,9 @@ from .df_algebra import (
     UnionNode,
     JoinNode,
     SortNode,
+    FilterNode,
     translate_exprs_to_base,
+    replace_frame_in_exprs,
 )
 from .expr import (
     AggregateExpr,
@@ -755,18 +757,7 @@ class OmnisciOnRayFrame(BasePandasFrame):
             # If index is preserved and we have no index columns then we
             # need to create one using __rowid__ virtual column.
             if self._index_cols is None:
-                exprs = OrderedDict()
-                exprs["__index__"] = base.ref("__rowid__")
-                for col in base.columns:
-                    exprs[col] = base.ref(col)
-                base = self.__constructor__(
-                    columns=base.columns,
-                    dtypes=self._dtypes_for_exprs(exprs),
-                    op=TransformNode(base, exprs),
-                    index_cols=["__index__"],
-                    uses_rowid=True,
-                    force_execution_mode=self._force_execution_mode,
-                )
+                base = base._materialize_rowid()
 
             return self.__constructor__(
                 columns=base.columns,
@@ -775,6 +766,77 @@ class OmnisciOnRayFrame(BasePandasFrame):
                 index_cols=base._index_cols,
                 force_execution_mode=self._force_execution_mode,
             )
+
+    def filter(self, key):
+        if not isinstance(key, type(self)):
+            raise NotImplementedError("Unsupported key type in filter")
+
+        if not isinstance(key._op, TransformNode) or len(key.columns) != 1:
+            raise NotImplementedError("Unsupported key in filter")
+
+        key_col = key.columns[0]
+        if not is_bool_dtype(key._dtypes[key_col]):
+            raise NotImplementedError("Unsupported key in filter")
+
+        base = self._find_common_projections_base(key)
+        if base is None:
+            raise NotImplementedError("Unsupported key in filter")
+
+        # We build the resulting frame by applying the filter to the
+        # base frame and then using the filtered result as a new base.
+        # If base frame has no index columns, then we need to create
+        # one.
+        key_exprs = translate_exprs_to_base(key._op.exprs, base)
+        if base._index_cols is None:
+            filter_base = base._materialize_rowid()
+            key_exprs = replace_frame_in_exprs(key_exprs, base, filter_base)
+        else:
+            filter_base = base
+        condition = key_exprs[key_col]
+        filtered_base = self.__constructor__(
+            columns=filter_base.columns,
+            dtypes=filter_base._dtypes,
+            op=FilterNode(filter_base, condition),
+            index_cols=filter_base._index_cols,
+            force_execution_mode=self._force_execution_mode,
+        )
+
+        if isinstance(self._op, FrameNode):
+            assert self is base
+            exprs = OrderedDict()
+            for col in filtered_base._table_cols:
+                exprs[col] = filtered_base.ref(col)
+        else:
+            assert isinstance(
+                self._op, TransformNode
+            ), f"unexpected op: {self._op.dumps()}"
+            exprs = translate_exprs_to_base(self._op.exprs, base)
+            exprs = replace_frame_in_exprs(exprs, base, filtered_base)
+            if base._index_cols is None:
+                exprs["__index__"] = filtered_base.ref("__index__")
+                exprs.move_to_end("__index__", last=False)
+
+        return self.__constructor__(
+            columns=filtered_base.columns,
+            dtypes=filtered_base._dtypes,
+            op=TransformNode(filtered_base, exprs),
+            index_cols=filtered_base._index_cols,
+            force_execution_mode=self._force_execution_mode,
+        )
+
+    def _materialize_rowid(self):
+        exprs = OrderedDict()
+        exprs["__index__"] = self.ref("__rowid__")
+        for col in self._table_cols:
+            exprs[col] = self.ref(col)
+        return self.__constructor__(
+            columns=self.columns,
+            dtypes=self._dtypes_for_exprs(exprs),
+            op=TransformNode(self, exprs),
+            index_cols=["__index__"],
+            uses_rowid=True,
+            force_execution_mode=self._force_execution_mode,
+        )
 
     def _index_exprs(self):
         exprs = OrderedDict()
@@ -1010,6 +1072,9 @@ class OmnisciOnRayFrame(BasePandasFrame):
 
     def to_pandas(self):
         self._execute()
+
+        if self._force_execution_mode == "lazy":
+            raise RuntimeError("unexpected to_pandas triggered on lazy frame")
 
         df = self._frame_mgr_cls.to_pandas(self._partitions)
 

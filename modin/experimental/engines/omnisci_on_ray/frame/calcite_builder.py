@@ -40,6 +40,7 @@ from .df_algebra import (
     JoinNode,
     UnionNode,
     SortNode,
+    FilterNode,
 )
 
 from collections import abc
@@ -294,6 +295,8 @@ class CalciteBuilder:
                 self._process_union(op)
             elif isinstance(op, SortNode):
                 self._process_sort(op)
+            elif isinstance(op, FilterNode):
+                self._process_filter(op)
             else:
                 raise NotImplementedError(
                     f"CalciteBuilder doesn't support {type(op).__name__}"
@@ -462,3 +465,7 @@ class CalciteBuilder:
                 CalciteCollation(self._ref_idx(frame, col), ascending, nulls)
             )
         self._push(CalciteSortNode(collations))
+
+    def _process_filter(self, op):
+        condition = self._translate(op.condition)
+        self._push(CalciteFilterNode(condition))

@@ -87,7 +87,7 @@ def run_and_compare(
                 allow_subqueries=allow_subqueries,
                 **kwargs
             )
-            index = exp_res.index
+            _ = exp_res.index
     else:
         exp_res = run_modin(
             fn=fn,
@@ -252,7 +252,11 @@ class TestCSV:
 
 
 class TestMasks:
-    data = {"a": [1, 1, None], "b": [None, None, 2], "c": [3, None, None]}
+    data = {
+        "a": [1, 1, 2, 2, 3],
+        "b": [None, None, 2, 1, 3],
+        "c": [3, None, None, 2, 1],
+    }
     cols_values = ["a", ["a", "b"], ["a", "b", "c"]]
 
     @pytest.mark.parametrize("cols", cols_values)
@@ -279,6 +283,26 @@ class TestMasks:
             return df
 
         run_and_compare(empty, data=None)
+
+    def test_filter(self):
+        def filter(df, cols, **kwargs):
+            return df[df["a"] == 1]
+
+        run_and_compare(filter, data=self.data)
+
+    def test_filter_with_index(self):
+        def filter(df, cols, **kwargs):
+            df = df.groupby("a").sum()
+            return df[df["b"] > 1]
+
+        run_and_compare(filter, data=self.data)
+
+    def test_filter_proj(self):
+        def filter(df, cols, **kwargs):
+            df1 = df + 2
+            return df1[(df["a"] + df1["b"]) > 1]
+
+        run_and_compare(filter, data=self.data)
 
 
 class TestFillna:
