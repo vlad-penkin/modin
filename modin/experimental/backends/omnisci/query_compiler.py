@@ -16,6 +16,7 @@ from modin.backends.pandas.query_compiler import PandasQueryCompiler
 
 import pandas
 
+from pandas.core.common import is_bool_indexer
 from pandas.core.dtypes.common import is_list_like
 
 
@@ -62,6 +63,25 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
         else:
             new_modin_frame = self._modin_frame.mask(col_indices=key)
         return self.__constructor__(new_modin_frame, shape_hint)
+
+    def getitem_array(self, key):
+        if isinstance(key, type(self)):
+            try:
+                new_modin_frame = self._modin_frame.filter(key._modin_frame)
+                return self.__constructor__(new_modin_frame, self._shape_hint)
+            except NotImplementedError:
+                key = key.to_pandas()
+
+        if is_bool_indexer(key):
+            return self.default_to_pandas(lambda df: df[key])
+
+        if any(k not in self.columns for k in key):
+            raise KeyError(
+                "{} not index".format(
+                    str([k for k in key if k not in self.columns]).replace(",", "")
+                )
+            )
+        return self.getitem_column_array(key)
 
     # Merge
 

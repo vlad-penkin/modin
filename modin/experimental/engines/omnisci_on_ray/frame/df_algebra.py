@@ -26,6 +26,14 @@ class TransformMapper:
         return self._op.exprs[col]
 
 
+class FrameMapper:
+    def __init__(self, frame):
+        self._frame = frame
+
+    def translate(self, col):
+        return self._frame.ref(col)
+
+
 class InputMapper:
     def __init__(self):
         self._mappers = {}
@@ -270,6 +278,24 @@ class SortNode(DFAlgNode):
         )
 
 
+class FilterNode(DFAlgNode):
+    """Filter rows by boolean expression."""
+
+    def __init__(self, frame, condition):
+        self.input = [frame]
+        self.condition = condition
+
+    def copy(self):
+        return FilterNode(self.input[0], self.condition)
+
+    def _prints(self, prefix):
+        return (
+            f"{prefix}FilterNode:\n"
+            f"{prefix}  Condition: {self.condition}\n"
+            + self._prints_input(prefix + "  ")
+        )
+
+
 def translate_exprs_to_base(exprs, base):
     new_exprs = dict(exprs)
 
@@ -299,4 +325,14 @@ def translate_exprs_to_base(exprs, base):
     res = OrderedDict()
     for col in exprs.keys():
         res[col] = new_exprs[col]
+    return res
+
+
+def replace_frame_in_exprs(exprs, old_frame, new_frame):
+    mapper = InputMapper()
+    mapper.add_mapper(old_frame, FrameMapper(new_frame))
+
+    res = OrderedDict()
+    for col in exprs.keys():
+        res[col] = exprs[col].translate_input(mapper)
     return res
