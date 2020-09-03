@@ -801,8 +801,7 @@ class OmnisciOnRayFrame(BasePandasFrame):
             force_execution_mode=self._force_execution_mode,
         )
 
-        if isinstance(self._op, FrameNode):
-            assert self is base
+        if self is base:
             exprs = OrderedDict()
             for col in filtered_base._table_cols:
                 exprs[col] = filtered_base.ref(col)
@@ -817,8 +816,8 @@ class OmnisciOnRayFrame(BasePandasFrame):
                 exprs.move_to_end("__index__", last=False)
 
         return self.__constructor__(
-            columns=filtered_base.columns,
-            dtypes=filtered_base._dtypes,
+            columns=self.columns,
+            dtypes=self._dtypes_for_exprs(exprs),
             op=TransformNode(filtered_base, exprs),
             index_cols=filtered_base._index_cols,
             force_execution_mode=self._force_execution_mode,
