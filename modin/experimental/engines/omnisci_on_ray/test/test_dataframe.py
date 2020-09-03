@@ -285,22 +285,31 @@ class TestMasks:
         run_and_compare(empty, data=None)
 
     def test_filter(self):
-        def filter(df, cols, **kwargs):
+        def filter(df, **kwargs):
             return df[df["a"] == 1]
 
         run_and_compare(filter, data=self.data)
 
     def test_filter_with_index(self):
-        def filter(df, cols, **kwargs):
+        def filter(df, **kwargs):
             df = df.groupby("a").sum()
             return df[df["b"] > 1]
 
         run_and_compare(filter, data=self.data)
 
     def test_filter_proj(self):
-        def filter(df, cols, **kwargs):
+        def filter(df, **kwargs):
             df1 = df + 2
             return df1[(df["a"] + df1["b"]) > 1]
+
+        run_and_compare(filter, data=self.data)
+
+    def test_filter_drop(self):
+        def filter(df, **kwargs):
+            df = df[["a", "b"]]
+            df = df[df["a"] != 1]
+            df["a"] = df["a"] * df["b"]
+            return df
 
         run_and_compare(filter, data=self.data)
 
