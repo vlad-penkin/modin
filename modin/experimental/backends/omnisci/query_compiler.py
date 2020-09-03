@@ -521,8 +521,24 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     def cat_codes(self):
         return self.__constructor__(self._modin_frame.cat_codes(), self._shape_hint)
 
-    def has_multiindex(self):
-        return self._modin_frame.has_multiindex()
+    def has_multiindex(self, axis=0):
+        """
+        Check if specified axis is indexed by MultiIndex.
+
+        Parameters
+        ----------
+        axis : 0 or 1, default 0
+            The axis to check (0 - index, 1 - columns).
+
+        Returns
+        -------
+        bool
+            True if index at specified axis is MultiIndex and False otherwise.
+        """
+        if axis == 0:
+            return self._modin_frame.has_multiindex()
+        assert axis == 1
+        return isinstance(self.columns, pandas.MultiIndex)
 
     def free(self):
         return
@@ -581,6 +597,7 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     is_monotonic = DFAlgNotSupported("is_monotonic")
     is_monotonic_decreasing = DFAlgNotSupported("is_monotonic_decreasing")
     last_valid_index = DFAlgNotSupported("last_valid_index")
+    join = DFAlgNotSupported("join")
     max = DFAlgNotSupported("max")
     mean = DFAlgNotSupported("mean")
     median = DFAlgNotSupported("median")
@@ -592,6 +609,7 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     negative = DFAlgNotSupported("negative")
     notna = DFAlgNotSupported("notna")
     nunique = DFAlgNotSupported("nunique")
+    pivot = DFAlgNotSupported("pivot")
     pow = DFAlgNotSupported("pow")
     prod = DFAlgNotSupported("prod")
     quantile_for_list_of_values = DFAlgNotSupported("quantile_for_list_of_values")
@@ -600,6 +618,7 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     rank = DFAlgNotSupported("rank")
     reindex = DFAlgNotSupported("reindex")
     repeat = DFAlgNotSupported("repeat")
+    replace = DFAlgNotSupported("replace")
     rfloordiv = DFAlgNotSupported("rfloordiv")
     rmod = DFAlgNotSupported("rmod")
     round = DFAlgNotSupported("round")
@@ -618,6 +637,7 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     to_numeric = DFAlgNotSupported("to_numeric")
     transpose = DFAlgNotSupported("transpose")
     unique = DFAlgNotSupported("unique")
+    unstack = DFAlgNotSupported("unstack")
     update = DFAlgNotSupported("update")
     var = DFAlgNotSupported("var")
     where = DFAlgNotSupported("where")

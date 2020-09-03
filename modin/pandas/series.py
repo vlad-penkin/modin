@@ -15,6 +15,7 @@ import os
 import numpy as np
 import pandas
 from pandas.core.common import apply_if_callable, is_bool_indexer
+from pandas.util._validators import validate_bool_kwarg
 import pandas._libs.lib as lib
 from pandas.core.dtypes.common import (
     is_dict_like,
@@ -50,17 +51,17 @@ class Series(BasePandasDataset):
         query_compiler=None,
     ):
         """
-    One-dimensional ndarray with axis labels (including time series).
+        One-dimensional ndarray with axis labels (including time series).
 
-    Args:
-        data: Contains data stored in Series.
-        index: Values must be hashable and have the same length as `data`.
-        dtype: Data type for the output Series. If not specified, this will be
-            inferred from `data`.
-        name: The name to give to the Series.
-        copy: Copy input data.
-        query_compiler: A query compiler object to create the Series from.
-    """
+        Args:
+            data: Contains data stored in Series.
+            index: Values must be hashable and have the same length as `data`.
+            dtype: Data type for the output Series. If not specified, this will be
+                inferred from `data`.
+            name: The name to give to the Series.
+            copy: Copy input data.
+            query_compiler: A query compiler object to create the Series from.
+        """
         if isinstance(data, type(self)):
             query_compiler = data._query_compiler.copy()
             if index is not None:
@@ -307,6 +308,11 @@ class Series(BasePandasDataset):
         if isinstance(temp_df, pandas.DataFrame) and not temp_df.empty:
             temp_df = temp_df.iloc[:, 0]
         temp_str = repr(temp_df)
+        freq_str = (
+            "Freq: {}, ".format(self.index.freqstr)
+            if isinstance(self.index, pandas.DatetimeIndex)
+            else ""
+        )
         if self.name is not None:
             name_str = "Name: {}, ".format(str(self.name))
         else:
@@ -321,9 +327,9 @@ class Series(BasePandasDataset):
             else temp_str.rsplit("dtype: ", 1)[-1]
         )
         if len(self) == 0:
-            return "Series([], {}{}".format(name_str, dtype_str)
-        return temp_str.rsplit("\nName:", 1)[0] + "\n{}{}{}".format(
-            name_str, len_str, dtype_str
+            return "Series([], {}{}{}".format(freq_str, name_str, dtype_str)
+        return temp_str.rsplit("\n", 1)[0] + "\n{}{}{}{}".format(
+            freq_str, name_str, len_str, dtype_str
         )
 
     def __round__(self, decimals=0):
@@ -1078,6 +1084,31 @@ class Series(BasePandasDataset):
                 )
             )
 
+    def unstack(self, level=-1, fill_value=None):
+        """
+        Unstack, a.k.a. pivot, Series with MultiIndex to produce DataFrame.
+        The level involved will automatically get sorted.
+
+        Parameters
+        ----------
+        level : int, str, or list of these, default last level
+            Level(s) to unstack, can pass level name.
+        fill_value : scalar value, default None
+            Value to use when replacing NaN values.
+
+        Returns
+        -------
+        DataFrame
+            Unstacked Series.
+        """
+        from .dataframe import DataFrame
+
+        result = DataFrame(
+            query_compiler=self._query_compiler.unstack(level, fill_value)
+        )
+
+        return result.droplevel(0, axis=1) if result.columns.nlevels > 1 else result
+
     @property
     def plot(
         self,
@@ -1303,6 +1334,64 @@ class Series(BasePandasDataset):
 
     def reorder_levels(self, order):
         return super(Series, self).reorder_levels(order)
+
+    def replace(
+        self,
+        to_replace=None,
+        value=None,
+        inplace=False,
+        limit=None,
+        regex=False,
+        method="pad",
+    ):
+        """
+        Replace values given in `to_replace` with `value`.
+
+        Values of the Series are replaced with other values dynamically.
+        This differs from updating with .loc or .iloc, which require
+        you to specify a location to update with some value.
+
+        Parameters
+        ----------
+        to_replace : str, regex, list, dict, Series, int, float, or None
+            How to find the values that will be replaced.
+        value : scalar, dict, list, str, regex, default None
+            Value to replace any values matching `to_replace` with.
+            For a DataFrame a dict of values can be used to specify which
+            value to use for each column (columns not in the dict will not be
+            filled). Regular expressions, strings and lists or dicts of such
+            objects are also allowed.
+        inplace : bool, default False
+            If True, in place. Note: this will modify any
+            other views on this object (e.g. a column from a DataFrame).
+            Returns the caller if this is True.
+        limit : int, default None
+            Maximum size gap to forward or backward fill.
+        regex : bool or same types as `to_replace`, default False
+            Whether to interpret `to_replace` and/or `value` as regular
+            expressions. If this is ``True`` then `to_replace` *must* be a
+            string. Alternatively, this could be a regular expression or a
+            list, dict, or array of regular expressions in which case
+            `to_replace` must be ``None``.
+        method : {{'pad', 'ffill', 'bfill', `None`}}
+            The method to use when for replacement, when `to_replace` is a
+            scalar, list or tuple and `value` is ``None``.
+
+        Returns
+        -------
+        Series
+            Object after replacement.
+        """
+        inplace = validate_bool_kwarg(inplace, "inplace")
+        new_query_compiler = self._query_compiler.replace(
+            to_replace=to_replace,
+            value=value,
+            inplace=False,
+            limit=limit,
+            regex=regex,
+            method=method,
+        )
+        return self._create_or_update_from_compiler(new_query_compiler, inplace)
 
     def searchsorted(self, value, side="left", sorter=None):
         return self._default_to_pandas(

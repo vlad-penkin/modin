@@ -288,7 +288,8 @@ class BasePandasFrame(object):
                 self._set_axis(axis, new_axis, cache_only=not is_lenghts_matches)
             else:
                 self._set_axis(
-                    axis, self.axes[axis],
+                    axis,
+                    self.axes[axis],
                 )
 
     def _validate_internal_indices(self, mode=None, **kwargs):
@@ -723,7 +724,9 @@ class BasePandasFrame(object):
         def astype_builder(df):
             return df.astype({k: v for k, v in col_dtypes.items() if k in df})
 
-        new_frame = self._frame_mgr_cls.map_partitions(self._partitions, astype_builder)
+        new_frame = self._frame_mgr_cls.lazy_map_partitions(
+            self._partitions, astype_builder
+        )
         return self.__constructor__(
             new_frame,
             self.index,
@@ -1058,7 +1061,7 @@ class BasePandasFrame(object):
         else:
             reduce_func = self._build_mapreduce_func(axis, reduce_func)
 
-        map_parts = self._frame_mgr_cls.map_partitions(self._partitions, map_func)
+        map_parts = self._frame_mgr_cls.lazy_map_partitions(self._partitions, map_func)
         reduce_parts = self._frame_mgr_cls.map_axis_partitions(
             axis, map_parts, reduce_func
         )
@@ -1096,7 +1099,7 @@ class BasePandasFrame(object):
         -------
             A new dataframe.
         """
-        new_partitions = self._frame_mgr_cls.map_partitions(self._partitions, func)
+        new_partitions = self._frame_mgr_cls.lazy_map_partitions(self._partitions, func)
         if dtypes == "copy":
             dtypes = self._dtypes
         elif dtypes is not None:
@@ -1194,7 +1197,12 @@ class BasePandasFrame(object):
         )
 
     def _apply_full_axis(
-        self, axis, func, new_index=None, new_columns=None, dtypes=None,
+        self,
+        axis,
+        func,
+        new_index=None,
+        new_columns=None,
+        dtypes=None,
     ):
         """
         Perform a function across an entire axis.
@@ -1290,8 +1298,14 @@ class BasePandasFrame(object):
         # Get the indices for the axis being applied to (it is the opposite of axis
         # being applied over)
         dict_indices = self._get_dict_of_block_index(axis ^ 1, numeric_indices)
-        new_partitions = self._frame_mgr_cls.apply_func_to_select_indices_along_full_axis(
-            axis, self._partitions, func, dict_indices, keep_remaining=keep_remaining
+        new_partitions = (
+            self._frame_mgr_cls.apply_func_to_select_indices_along_full_axis(
+                axis,
+                self._partitions,
+                func,
+                dict_indices,
+                keep_remaining=keep_remaining,
+            )
         )
         # TODO Infer columns and index from `keep_remaining` and `apply_indices`
         if new_index is None:
