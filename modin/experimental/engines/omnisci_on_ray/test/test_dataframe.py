@@ -101,6 +101,490 @@ def run_and_compare(
         df_equals(ref_res, exp_res)
 
 
+	
+from pathlib import Path
+from pandas.errors import ParserWarning
+import csv
+from modin import execution_engine
+	
+TEST_CSV_FILENAME = "test.csv"
+SMALL_ROW_SIZE = 2000
+
+@pytest.fixture
+def make_csv_file(delimiter=",", compression="infer"):
+    """Pytest fixture factory that makes temp csv files for testing.
+
+    Yields:
+        Function that generates csv files
+    """
+    filenames = []
+
+    def _make_csv_file(
+        filename=TEST_CSV_FILENAME,
+        row_size=SMALL_ROW_SIZE,
+        force=True,
+        delimiter=delimiter,
+        encoding=None,
+        compression=compression,
+    ):
+        if os.path.exists(filename) and not force:
+            pass
+        else:
+            dates = pd.date_range("2000", freq="h", periods=row_size)
+            df = pd.DataFrame(
+                {
+                    "col1": np.arange(row_size),
+                    "col2": [str(x.date()) for x in dates],
+                    "col3": np.arange(row_size),
+                    "col4": [str(x.time()) for x in dates],
+                }
+            )
+            if compression == "gzip":
+                filename = "{}.gz".format(filename)
+            elif compression == "zip" or compression == "xz" or compression == "bz2":
+                filename = "{fname}.{comp}".format(fname=filename, comp=compression)
+
+            df.to_csv(
+                filename, sep=delimiter, encoding=encoding, compression=compression
+            )
+            filenames.append(filename)
+            return df
+
+    # Return function that generates csv files
+    yield _make_csv_file
+
+    # Delete csv files that were created
+    for filename in filenames:
+        if os.path.exists(filename):
+            try:
+                os.remove(filename)
+            except PermissionError:
+                pass
+
+
+class TestReadCSV:
+
+    def test_from_csv(self, make_csv_file):
+        import pdb; pdb.set_trace()
+        make_csv_file()
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME)
+
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(Path(TEST_CSV_FILENAME))
+        modin_df = pd.read_csv(Path(TEST_CSV_FILENAME))
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_sep_none(self, make_csv_file):
+        make_csv_file()
+
+        with pytest.warns(ParserWarning):
+            pandas_df = pandas.read_csv(TEST_CSV_FILENAME, sep=None)
+        with pytest.warns(ParserWarning):
+            modin_df = pd.read_csv(TEST_CSV_FILENAME, sep=None)
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_bad_quotes(self):
+        csv_bad_quotes = """1, 2, 3, 4
+    one, two, three, four
+    five, "six", seven, "eight
+    """
+
+        with open(TEST_CSV_FILENAME, "w") as f:
+            f.write(csv_bad_quotes)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_quote_none(self):
+        csv_bad_quotes = """1, 2, 3, 4
+    one, two, three, four
+    five, "six", seven, "eight
+    """
+        with open(TEST_CSV_FILENAME, "w") as f:
+            f.write(csv_bad_quotes)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, quoting=csv.QUOTE_NONE)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, quoting=csv.QUOTE_NONE)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_categories(self):
+        pandas_df = pandas.read_csv(
+            "modin/pandas/test/data/test_categories.csv",
+            names=["one", "two"],
+            dtype={"one": "int64", "two": "category"},
+        )
+        modin_df = pd.read_csv(
+            "modin/pandas/test/data/test_categories.csv",
+            names=["one", "two"],
+            dtype={"one": "int64", "two": "category"},
+        )
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_gzip(self, make_csv_file):
+        make_csv_file(compression="gzip")
+        gzip_path = "{}.gz".format(TEST_CSV_FILENAME)
+
+        pandas_df = pandas.read_csv(gzip_path)
+        modin_df = pd.read_csv(gzip_path)
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(gzip_path, compression="gzip")
+        modin_df = pd.read_csv(gzip_path, compression="gzip")
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_bz2(self, make_csv_file):
+        make_csv_file(compression="bz2")
+        bz2_path = "{}.bz2".format(TEST_CSV_FILENAME)
+
+        pandas_df = pandas.read_csv(bz2_path)
+        modin_df = pd.read_csv(bz2_path)
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(bz2_path, compression="bz2")
+        modin_df = pd.read_csv(bz2_path, compression="bz2")
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_xz(self, make_csv_file):
+        make_csv_file(compression="xz")
+        xz_path = "{}.xz".format(TEST_CSV_FILENAME)
+
+        pandas_df = pandas.read_csv(xz_path)
+        modin_df = pd.read_csv(xz_path)
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(xz_path, compression="xz")
+        modin_df = pd.read_csv(xz_path, compression="xz")
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_zip(self, make_csv_file):
+        make_csv_file(compression="zip")
+        zip_path = "{}.zip".format(TEST_CSV_FILENAME)
+
+        pandas_df = pandas.read_csv(zip_path)
+        modin_df = pd.read_csv(zip_path)
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(zip_path, compression="zip")
+        modin_df = pd.read_csv(zip_path, compression="zip")
+        df_equals(modin_df, pandas_df)
+
+
+    def test_parse_dates_read_csv(self):
+        pandas_df = pandas.read_csv("modin/pandas/test/data/test_time_parsing.csv")
+        modin_df = pd.read_csv("modin/pandas/test/data/test_time_parsing.csv")
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=0,
+            encoding="utf-8",
+        )
+        modin_df = pd.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=0,
+            encoding="utf-8",
+        )
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=0,
+            parse_dates=["timestamp"],
+            encoding="utf-8",
+        )
+        modin_df = pd.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=0,
+            parse_dates=["timestamp"],
+            encoding="utf-8",
+        )
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=2,
+            parse_dates=["timestamp"],
+            encoding="utf-8",
+        )
+        modin_df = pd.read_csv(
+            "modin/pandas/test/data/test_time_parsing.csv",
+            names=[
+                "timestamp",
+                "symbol",
+                "high",
+                "low",
+                "open",
+                "close",
+                "spread",
+                "volume",
+            ],
+            header=0,
+            index_col=2,
+            parse_dates=["timestamp"],
+            encoding="utf-8",
+        )
+        df_equals(modin_df, pandas_df)
+
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"header": None, "usecols": [0, 7]},
+            {"usecols": [0, 7]},
+            {"names": [0, 7], "usecols": [0, 7]},
+        ],
+    )
+    def test_from_csv_with_args(self, kwargs):
+        file_name = "modin/pandas/test/data/issue_621.csv"
+        pandas_df = pandas.read_csv(file_name, **kwargs)
+        modin_df = pd.read_csv(file_name, **kwargs)
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_table(self, make_csv_file):
+        make_csv_file(delimiter="\t")
+
+        pandas_df = pandas.read_table(TEST_CSV_FILENAME)
+        modin_df = pd.read_table(TEST_CSV_FILENAME)
+
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_table(Path(TEST_CSV_FILENAME))
+        modin_df = pd.read_table(Path(TEST_CSV_FILENAME))
+
+        df_equals(modin_df, pandas_df)
+
+
+    @pytest.mark.parametrize("usecols", [["a"], ["a", "b", "e"], [0, 1, 4]])
+    def test_from_csv_with_usecols(self, usecols):
+        fname = "modin/pandas/test/data/test_usecols.csv"
+        pandas_df = pandas.read_csv(fname, usecols=usecols)
+        modin_df = pd.read_csv(fname, usecols=usecols)
+        df_equals(modin_df, pandas_df)
+
+
+    @pytest.mark.skipif(
+        execution_engine.get().lower() == "python", reason="Using pandas implementation"
+    )
+    def test_from_csv_s3(self, make_csv_file):
+        dataset_url = "s3://noaa-ghcn-pds/csv/1788.csv"
+        pandas_df = pandas.read_csv(dataset_url)
+
+        # This first load is to trigger all the import deprecation warnings
+        modin_df = pd.read_csv(dataset_url)
+
+        # This will warn if it defaults to pandas behavior, but it shouldn't
+        with pytest.warns(None) as record:
+            modin_df = pd.read_csv(dataset_url)
+
+        assert not any(
+            "defaulting to pandas implementation" in str(err) for err in record.list
+        )
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_default(self, make_csv_file):
+        # We haven't implemented read_csv from https, but if it's implemented, then this needs to change
+        dataset_url = "https://raw.githubusercontent.com/modin-project/modin/master/modin/pandas/test/data/blah.csv"
+        pandas_df = pandas.read_csv(dataset_url)
+
+        with pytest.warns(UserWarning):
+            modin_df = pd.read_csv(dataset_url)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_chunksize(self, make_csv_file):
+        make_csv_file()
+
+        # Tests __next__ and correctness of reader as an iterator
+        # Use larger chunksize to read through file quicker
+        rdf_reader = pd.read_csv(TEST_CSV_FILENAME, chunksize=500)
+        pd_reader = pandas.read_csv(TEST_CSV_FILENAME, chunksize=500)
+
+        for modin_df, pd_df in zip(rdf_reader, pd_reader):
+            df_equals(modin_df, pd_df)
+
+        # Tests that get_chunk works correctly
+        rdf_reader = pd.read_csv(TEST_CSV_FILENAME, chunksize=1)
+        pd_reader = pandas.read_csv(TEST_CSV_FILENAME, chunksize=1)
+
+        modin_df = rdf_reader.get_chunk(1)
+        pd_df = pd_reader.get_chunk(1)
+
+        df_equals(modin_df, pd_df)
+
+        # Tests that read works correctly
+        rdf_reader = pd.read_csv(TEST_CSV_FILENAME, chunksize=1)
+        pd_reader = pandas.read_csv(TEST_CSV_FILENAME, chunksize=1)
+
+        modin_df = rdf_reader.read()
+        pd_df = pd_reader.read()
+
+        df_equals(modin_df, pd_df)
+
+
+    def test_from_csv_skiprows(self, make_csv_file):
+        make_csv_file()
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, skiprows=2)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, skiprows=2)
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            TEST_CSV_FILENAME, names=["c1", "c2", "c3", "c4"], skiprows=2
+        )
+        modin_df = pd.read_csv(
+            TEST_CSV_FILENAME, names=["c1", "c2", "c3", "c4"], skiprows=2
+        )
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            TEST_CSV_FILENAME, names=["c1", "c2", "c3", "c4"], skiprows=lambda x: x % 2
+        )
+        modin_df = pd.read_csv(
+            TEST_CSV_FILENAME, names=["c1", "c2", "c3", "c4"], skiprows=lambda x: x % 2
+        )
+        df_equals(modin_df, pandas_df)
+
+
+    @pytest.mark.parametrize(
+        "encoding", ["latin8", "ISO-8859-1", "latin1", "iso-8859-1", "cp1252", "utf8"]
+    )
+    def test_from_csv_encoding(self, make_csv_file, encoding):
+        make_csv_file(encoding=encoding)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, encoding=encoding)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, encoding=encoding)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_default_to_pandas_behavior(self, make_csv_file):
+        make_csv_file()
+
+        with pytest.warns(UserWarning):
+            # Test nrows
+            pd.read_csv(TEST_CSV_FILENAME, nrows=10)
+
+        with pytest.warns(UserWarning):
+            # This tests that we default to pandas on a buffer
+            from io import StringIO
+
+            pd.read_csv(StringIO(open(TEST_CSV_FILENAME, "r").read()))
+
+        with pytest.warns(UserWarning):
+            pd.read_csv(TEST_CSV_FILENAME, skiprows=lambda x: x in [0, 2])
+
+
+    def test_from_csv_index_col(self, make_csv_file):
+        make_csv_file()
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, index_col="col1")
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, index_col="col1")
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_skipfooter(self, make_csv_file):
+        make_csv_file()
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, skipfooter=13)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, skipfooter=13)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_parse_dates(self, make_csv_file):
+        make_csv_file(force=True)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, parse_dates=[["col2", "col4"]])
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, parse_dates=[["col2", "col4"]])
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = pandas.read_csv(
+            TEST_CSV_FILENAME, parse_dates={"time": ["col2", "col4"]}
+        )
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, parse_dates={"time": ["col2", "col4"]})
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_newlines_in_quotes(self):
+        pandas_df = pandas.read_csv("modin/pandas/test/data/newlines.csv")
+        modin_df = pd.read_csv("modin/pandas/test/data/newlines.csv")
+        df_equals(modin_df, pandas_df)
+
+
 class TestCSV:
     root = os.path.abspath(__file__ + "/.." * 6)  # root of modin repo
 
