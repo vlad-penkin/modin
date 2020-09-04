@@ -122,23 +122,22 @@ def make_csv_file(delimiter=",", compression="infer"):
     def _make_csv_file(
         filename=TEST_CSV_FILENAME,
         row_size=SMALL_ROW_SIZE,
+        columns_names=["col1", "col2", "col3", "col4"],
         force=True,
         delimiter=delimiter,
         encoding=None,
         compression=compression,
     ):
+        assert isinstance(columns_names, (list, tuple)) and len(columns_names) <= 4
+
         if os.path.exists(filename) and not force:
             pass
         else:
+            import pdb; pdb.set_trace()
             dates = pd.date_range("2000", freq="h", periods=row_size)
-            df = pd.DataFrame(
-                {
-                    "col1": np.arange(row_size),
-                    "col2": [str(x.date()) for x in dates],
-                    "col3": np.arange(row_size),
-                    "col4": [str(x.time()) for x in dates],
-                }
-            )
+            data_list = [np.arange(row_size), [str(x.date()) for x in dates], np.arange(row_size), [str(x.time()) for x in dates]]
+            data = {col_name: data_list[col_number] for col_number, col_name in enumerate(columns_names)}
+            df = pd.DataFrame(data)
             if compression == "gzip":
                 filename = "{}.gz".format(filename)
             elif compression == "zip" or compression == "xz" or compression == "bz2":
@@ -624,7 +623,7 @@ class TestReadCSV:
     """
         csv_bad_quotes = """1, 2, 3, 4
     5, 6, 7, 8
-    9, 10", 11, 12
+    9, 10, 11, 12
     """
 
         for case_str in [csv_single_col, csv_bad_quotes]:
@@ -653,7 +652,22 @@ class TestReadCSV:
 
         df_equals(modin_df, pandas_df)
 
-#
+
+    @pytest.mark.xfail(reason="pyarrow.lib.ArrowInvalid: CSV parse error: Expected 4 columns, got 1")
+    def test_from_csv_mangle_dupe_cols(self):
+        csv_non_unique_cols = """col,col,col,col
+    5, 6, 7, 8
+    9, 10, 11, 12
+    """
+
+        with open(TEST_CSV_FILENAME, "w") as f:
+            f.write(csv_non_unique_cols)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, squeeze=True)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, squeeze=True)
+
+        df_equals(modin_df, pandas_df)
+
 class TestCSV:
     root = os.path.abspath(__file__ + "/.." * 6)  # root of modin repo
 
