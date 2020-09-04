@@ -25,6 +25,7 @@ from .calcite_serializer import CalciteSerializer
 
 import pyarrow
 import pandas
+import os
 
 
 class OmnisciOnRayFrameManager(RayFrameManager):
@@ -59,7 +60,7 @@ class OmnisciOnRayFrameManager(RayFrameManager):
             return np.array(parts), row_lengths, col_widths
 
     @classmethod
-    def run_exec_plan(cls, plan, index_cols, dtypes):
+    def run_exec_plan(cls, plan, index_cols, dtypes, columns):
         # TODO: this plan is supposed to be executed remotely using Ray.
         # For now OmniSci engine support only a single node cluster.
         # Therefore remote execution is not necessary and will be added
@@ -85,13 +86,24 @@ class OmnisciOnRayFrameManager(RayFrameManager):
         calcite_plan = CalciteBuilder().build(plan)
         calcite_json = CalciteSerializer().serialize(calcite_plan)
 
-        curs = omniSession.executeRA("execute relalg " + calcite_json)
+        cmd_prefix = "execute relalg "
+
+        use_calcite_env = os.environ.get("MODIN_USE_CALCITE")
+        use_calcite = use_calcite_env is not None and use_calcite_env.lower() == "true"
+
+        if use_calcite:
+            cmd_prefix = "execute calcite "
+
+        curs = omniSession.executeRA(cmd_prefix + calcite_json)
         assert curs
         rb = curs.getArrowRecordBatch()
         assert rb
         at = pyarrow.Table.from_batches([rb])
 
         res = np.empty((1, 1), dtype=np.dtype(object))
+        # workaround for https://github.com/modin-project/modin/issues/1851
+        if use_calcite:
+            at = at.rename_columns(["F_" + str(c) for c in columns])
         res[0][0] = cls._partition_class.put_arrow(at)
 
         return res

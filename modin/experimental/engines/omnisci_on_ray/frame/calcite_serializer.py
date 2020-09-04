@@ -119,7 +119,7 @@ class CalciteSerializer:
         if literal.val is None:
             return {
                 "literal": None,
-                "type": "NULL",
+                "type": "BIGINT",
                 "target_type": "BIGINT",
                 "scale": 0,
                 "precision": 19,
