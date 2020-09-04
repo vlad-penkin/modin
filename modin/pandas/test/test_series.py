@@ -474,14 +474,24 @@ def test___pow__(data):
     inter_df_math_helper(modin_series, pandas_series, "__pow__")
 
 
-def test___repr___empty():
-    modin_series, pandas_series = pd.Series(), pandas.Series()
-    assert repr(modin_series) == repr(pandas_series)
-
-
-@pytest.mark.parametrize("data", test_data_values, ids=test_data_keys)
-def test___repr__(data):
-    modin_series, pandas_series = create_test_series(data)
+@pytest.mark.parametrize("name", ["Dates", None])
+@pytest.mark.parametrize(
+    "dt_index", [True, False], ids=["dt_index_true", "dt_index_false"]
+)
+@pytest.mark.parametrize(
+    "data", [*test_data_values, "empty"], ids=[*test_data_keys, "empty"]
+)
+def test___repr__(name, dt_index, data):
+    if data == "empty":
+        modin_series, pandas_series = pd.Series(), pandas.Series()
+    else:
+        modin_series, pandas_series = create_test_series(data)
+    pandas_series.name = modin_series.name = name
+    if dt_index:
+        index = pandas.date_range(
+            "1/1/2000", periods=len(pandas_series.index), freq="T"
+        )
+        pandas_series.index = modin_series.index = index
     assert repr(modin_series) == repr(pandas_series)
 
 
@@ -1437,7 +1447,8 @@ def test_dt():
         modin_series.dt.to_pydatetime(), pandas_series.dt.to_pydatetime()
     )
     df_equals(
-        modin_series.dt.tz_localize(None), pandas_series.dt.tz_localize(None),
+        modin_series.dt.tz_localize(None),
+        pandas_series.dt.tz_localize(None),
     )
     df_equals(
         modin_series.dt.tz_convert(tz="Europe/Berlin"),
@@ -1823,7 +1834,9 @@ def test_kurt_kurtosis(data, axis, skipna, level, numeric_only, method):
     modin_series, pandas_series = create_test_series(data)
 
     eval_general(
-        modin_series, pandas_series, lambda df: df.kurtosis(**func_kwargs),
+        modin_series,
+        pandas_series,
+        lambda df: df.kurtosis(**func_kwargs),
     )
 
 
@@ -1838,7 +1851,7 @@ def test_last():
 
 def test_index_order():
     # see #1708 and #1869 for details
-    s_modin, s_pandas = create_test_series(test_data["dense_nan_data"])
+    s_modin, s_pandas = create_test_series(test_data["float_nan_data"])
     rows_number = len(s_modin.index)
     level_0 = np.random.choice([x for x in range(10)], rows_number)
     level_1 = np.random.choice([x for x in range(10)], rows_number)
@@ -2396,15 +2409,22 @@ def test_repeat(data, repeats):
 )
 def test_repeat_lists(data, repeats):
     eval_general(
-        pd.Series(data), pandas.Series(data), lambda df: df.repeat(repeats),
+        pd.Series(data),
+        pandas.Series(data),
+        lambda df: df.repeat(repeats),
     )
 
 
-@pytest.mark.parametrize("data", test_data_values, ids=test_data_keys)
-def test_replace(data):
-    modin_series, _ = create_test_series(data)  # noqa: F841
-    with pytest.warns(UserWarning):
-        modin_series.replace(0, 5)
+def test_replace():
+    modin_series = pd.Series([0, 1, 2, 3, 4])
+    pandas_series = pandas.Series([0, 1, 2, 3, 4])
+    modin_result = modin_series.replace(0, 5)
+    pandas_result = pandas_series.replace(0, 5)
+    df_equals(modin_result, pandas_result)
+
+    modin_result = modin_series.replace([1, 2], method="bfill")
+    pandas_result = pandas_series.replace([1, 2], method="bfill")
+    df_equals(modin_result, pandas_result)
 
 
 @pytest.mark.parametrize("closed", ["left", "right"])
@@ -2456,10 +2476,12 @@ def test_resample(closed, label, level):
         pandas_resampler.transform(lambda x: (x - x.mean()) / x.std()),
     )
     df_equals(
-        pandas_resampler.aggregate("max"), modin_resampler.aggregate("max"),
+        pandas_resampler.aggregate("max"),
+        modin_resampler.aggregate("max"),
     )
     df_equals(
-        modin_resampler.apply("sum"), pandas_resampler.apply("sum"),
+        modin_resampler.apply("sum"),
+        pandas_resampler.apply("sum"),
     )
     df_equals(
         modin_resampler.get_group(name=list(modin_resampler.groups)[0]),
@@ -2471,7 +2493,8 @@ def test_resample(closed, label, level):
     # Upsampling from level= or on= selection is not supported
     if level is None:
         df_equals(
-            modin_resampler.interpolate(), pandas_resampler.interpolate(),
+            modin_resampler.interpolate(),
+            pandas_resampler.interpolate(),
         )
         df_equals(modin_resampler.asfreq(), pandas_resampler.asfreq())
         df_equals(
@@ -2898,10 +2921,10 @@ def test_to_numpy(data):
 
 @pytest.mark.parametrize("data", test_data_values, ids=test_data_keys)
 def test_to_string(request, data):
-    modin_series, pandas_series = create_test_series(data)
-    # Skips nan because only difference is nan instead of NaN
-    if not name_contains(request.node.name, ["nan"]):
-        assert modin_series.to_string() == pandas_series.to_string()
+    eval_general(
+        *create_test_series(data),
+        lambda df: df.to_string(),
+    )
 
 
 def test_to_timestamp():
@@ -3017,7 +3040,8 @@ def test_tz_localize():
         pandas_series.tz_localize("America/Los_Angeles"),
     )
     df_equals(
-        modin_series.tz_localize("UTC"), pandas_series.tz_localize("UTC"),
+        modin_series.tz_localize("UTC"),
+        pandas_series.tz_localize("UTC"),
     )
 
 
@@ -3059,21 +3083,39 @@ def test_unique(data):
     assert_array_equal(modin_result, pandas_result)
 
 
-def test_unstack():
-    s = pd.Series(
-        np.random.randint(1, 100, 12),
-        index=pd.MultiIndex.from_tuples(
+@pytest.mark.parametrize("data", test_data_values, ids=test_data_keys)
+def test_unstack(data):
+    modin_series, pandas_series = create_test_series(data)
+    if len(pandas_series.index) == 256:
+        index = pd.MultiIndex.from_product(
             [
-                (num, letter, color)
-                for num in range(1, 3)
-                for letter in ["a", "b", "c"]
-                for color in ["Red", "Green"]
-            ],
-            names=["Number", "Letter", "Color"],
-        ),
-    )
-    with pytest.warns(UserWarning):
-        s.unstack()
+                ["a", "b", "c", "d"],
+                ["x", "y", "z", "last"],
+                ["i", "j", "k", "index"],
+                [1, 2, 3, 4],
+            ]
+        )
+    elif len(pandas_series.index) == 100:
+        index = pd.MultiIndex.from_product(
+            [
+                ["x", "y", "z", "last"],
+                ["a", "b", "c", "d", "f"],
+                ["i", "j", "k", "l", "index"],
+            ]
+        )
+
+    modin_series = pd.Series(data[next(iter(data.keys()))], index=index)
+    pandas_series = pandas.Series(data[next(iter(data.keys()))], index=index)
+
+    df_equals(modin_series.unstack(), pandas_series.unstack())
+    df_equals(modin_series.unstack(level=0), pandas_series.unstack(level=0))
+    df_equals(modin_series.unstack(level=[0, 1]), pandas_series.unstack(level=[0, 1]))
+
+    if len(pandas_series.index) == 256:
+        df_equals(
+            modin_series.unstack(level=[0, 1, 2]),
+            pandas_series.unstack(level=[0, 1, 2]),
+        )
 
 
 @pytest.mark.parametrize(

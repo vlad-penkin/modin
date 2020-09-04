@@ -88,8 +88,7 @@ class BaseQueryCompiler(abc.ABC):
     # Data Management Methods
     @abc.abstractmethod
     def free(self):
-        """In the future, this will hopefully trigger a cleanup of this object.
-        """
+        """In the future, this will hopefully trigger a cleanup of this object."""
         # TODO create a way to clean up this object.
         pass
 
@@ -315,6 +314,27 @@ class BaseQueryCompiler(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def join(self, right, **kwargs):
+        """
+        Join columns of another DataFrame.
+
+        Parameters
+        ----------
+        right : BaseQueryCompiler
+            The query compiler of the right DataFrame to join with.
+
+        Returns
+        -------
+        BaseQueryCompiler
+            A new query compiler that contains result of the join.
+
+        Notes
+        -----
+        See pd.DataFrame.join for more info on kwargs.
+        """
+        pass
+
     # END Abstract inter-data operations
 
     # Abstract Transpose
@@ -502,6 +522,10 @@ class BaseQueryCompiler(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def replace(self, **kwargs):
+        pass
+
+    @abc.abstractmethod
     def series_view(self, **kwargs):
         pass
 
@@ -516,6 +540,9 @@ class BaseQueryCompiler(abc.ABC):
     # END Abstract map partitions operations
 
     def value_counts(self, **kwargs):
+        pass
+
+    def stack(self, level, dropna):
         pass
 
     # Abstract map partitions across select indices
@@ -1171,6 +1198,14 @@ class BaseQueryCompiler(abc.ABC):
     # END Manual Partitioning methods
 
     @abc.abstractmethod
+    def unstack(self, level, fill_value):
+        pass
+
+    @abc.abstractmethod
+    def pivot(self, index, columns, values):
+        pass
+
+    @abc.abstractmethod
     def get_dummies(self, columns, **kwargs):
         """Convert categorical variables to dummy variables for certain columns.
 
@@ -1228,5 +1263,18 @@ class BaseQueryCompiler(abc.ABC):
     # END __delitem__
 
     @abc.abstractmethod
-    def has_multiindex(self):
+    def has_multiindex(self, axis=0):
+        """
+        Check if specified axis is indexed by MultiIndex.
+
+        Parameters
+        ----------
+        axis : 0 or 1, default 0
+            The axis to check (0 - index, 1 - columns).
+
+        Returns
+        -------
+        bool
+            True if index at specified axis is MultiIndex and False otherwise.
+        """
         pass
