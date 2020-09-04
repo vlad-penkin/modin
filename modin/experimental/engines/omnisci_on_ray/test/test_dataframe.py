@@ -585,6 +585,61 @@ class TestReadCSV:
 
     # test_io.py ENDS
 
+
+    @pytest.mark.parametrize(
+        "delimiter", ["_", ":", ";", ",", ".", "\n"]
+    )
+    def test_from_csv_delimeter(self, make_csv_file, delimiter):
+        make_csv_file(delimiter=delimiter)
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, delimiter=delimiter)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, delimiter=delimiter)
+
+        df_equals(modin_df, pandas_df)
+
+
+    def test_from_csv_squeeze(self, make_csv_file):
+        csv_single_element = "1"
+
+        csv_single_col = """1
+    2
+    3
+    """
+        csv_bad_quotes = """1, 2, 3, 4
+    5, 6, 7, 8
+    9, 10", 11, 12
+    """
+
+        for case_str in [csv_single_col, csv_bad_quotes]:
+            with open(TEST_CSV_FILENAME, "w") as f:
+                f.write(case_str)
+
+            pandas_df = pandas.read_csv(TEST_CSV_FILENAME, squeeze=True)
+            import pdb; pdb.set_trace()
+            modin_df = pd.read_csv(TEST_CSV_FILENAME, squeeze=True)
+
+            df_equals(modin_df, pandas_df)
+
+            pandas_df = pandas.read_csv(TEST_CSV_FILENAME, header=None, squeeze=True)
+            # import pdb; pdb.set_trace()
+            modin_df = pd.read_csv(TEST_CSV_FILENAME, header=None, squeeze=True)
+
+            df_equals(modin_df, pandas_df)
+
+
+    @pytest.mark.parametrize(
+        "prefix", ["_", ".", "col", "COL"]
+    )
+    def test_from_csv_prefix(self, make_csv_file, prefix):
+        make_csv_file()
+
+        pandas_df = pandas.read_csv(TEST_CSV_FILENAME, prefix=prefix)
+        modin_df = pd.read_csv(TEST_CSV_FILENAME, prefix=prefix)
+        import pdb; pdb.set_trace()
+
+        df_equals(modin_df, pandas_df)
+
+#
 class TestCSV:
     root = os.path.abspath(__file__ + "/.." * 6)  # root of modin repo
 
