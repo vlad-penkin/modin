@@ -163,9 +163,8 @@ def make_csv_file(delimiter=",", compression="infer"):
 
 
 class TestReadCSV:
-
+    # test_io.py BEGINS
     def test_from_csv(self, make_csv_file):
-        import pdb; pdb.set_trace()
         make_csv_file()
 
         pandas_df = pandas.read_csv(TEST_CSV_FILENAME)
@@ -584,6 +583,7 @@ class TestReadCSV:
         modin_df = pd.read_csv("modin/pandas/test/data/newlines.csv")
         df_equals(modin_df, pandas_df)
 
+    # test_io.py ENDS
 
 class TestCSV:
     root = os.path.abspath(__file__ + "/.." * 6)  # root of modin repo
