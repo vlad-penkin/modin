@@ -159,7 +159,9 @@ class OmnisciOnRayFrame(BasePandasFrame):
 
         if row_indices is not None or row_numeric_idx is not None:
             op = MaskNode(
-                base, row_indices=row_indices, row_numeric_idx=row_numeric_idx,
+                base,
+                row_indices=row_indices,
+                row_numeric_idx=row_numeric_idx,
             )
             return self.__constructor__(
                 columns=base.columns,
@@ -287,7 +289,12 @@ class OmnisciOnRayFrame(BasePandasFrame):
         return new_frame
 
     def fillna(
-        self, value=None, method=None, axis=None, limit=None, downcast=None,
+        self,
+        value=None,
+        method=None,
+        axis=None,
+        limit=None,
+        downcast=None,
     ):
         if axis != 0:
             raise NotImplementedError("fillna is supported for axis = 0 only")
@@ -415,7 +422,14 @@ class OmnisciOnRayFrame(BasePandasFrame):
                 new_columns.append(c + suffix)
                 new_dtypes.append(other._dtypes[c])
 
-        op = JoinNode(self, other, how=how, on=on, sort=sort, suffixes=suffixes,)
+        op = JoinNode(
+            self,
+            other,
+            how=how,
+            on=on,
+            sort=sort,
+            suffixes=suffixes,
+        )
 
         new_columns = Index.__new__(Index, data=new_columns, dtype=self.columns.dtype)
         return self.__constructor__(

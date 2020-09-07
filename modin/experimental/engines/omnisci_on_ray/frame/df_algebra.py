@@ -121,14 +121,21 @@ class FrameNode(DFAlgNode):
 
 class MaskNode(DFAlgNode):
     def __init__(
-        self, base, row_indices=None, row_numeric_idx=None,
+        self,
+        base,
+        row_indices=None,
+        row_numeric_idx=None,
     ):
         self.input = [base]
         self.row_indices = row_indices
         self.row_numeric_idx = row_numeric_idx
 
     def copy(self):
-        return MaskNode(self.input[0], self.row_indices, self.row_numeric_idx,)
+        return MaskNode(
+            self.input[0],
+            self.row_indices,
+            self.row_numeric_idx,
+        )
 
     def _prints(self, prefix):
         return (
@@ -231,7 +238,13 @@ class JoinNode(DFAlgNode):
         self.suffixes = suffixes
 
     def copy(self):
-        return JoinNode(self.input[0], self.input[1], self.how, self.on, self.sort,)
+        return JoinNode(
+            self.input[0],
+            self.input[1],
+            self.how,
+            self.on,
+            self.sort,
+        )
 
     def _prints(self, prefix):
         return (

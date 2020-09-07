@@ -46,7 +46,9 @@ class OmnisciOnRayFramePartition(BaseFramePartition):
     @classmethod
     def put(cls, obj):
         return OmnisciOnRayFramePartition(
-            object_id=ray.put(obj), length=len(obj.index), width=len(obj.columns),
+            object_id=ray.put(obj),
+            length=len(obj.index),
+            width=len(obj.columns),
         )
 
     @classmethod
