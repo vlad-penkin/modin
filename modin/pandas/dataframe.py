@@ -469,7 +469,7 @@ class DataFrame(BasePandasDataset):
             else:
                 mismatch = len(by) != len(self.axes[axis])
                 if mismatch and all(
-                    not isinstance(obj, Series)
+                    isinstance(obj, str)
                     and (
                         obj in self
                         or (hasattr(self.index, "names") and obj in self.index.names)
@@ -479,22 +479,11 @@ class DataFrame(BasePandasDataset):
                     # In the future, we will need to add logic to handle this, but for now
                     # we default to pandas in this case.
                     pass
-                elif mismatch:
-                    """Check that we group only by column name(s) or Series object(s)"""
-                    series = []
-                    cols = []
-                    for obj in by:
-                        if isinstance(obj, Series):
-                            series.append(obj._query_compiler)
-                        elif obj in self:
-                            cols.append(obj)
-                        else:
-                            raise KeyError(obj)
-                    cols = self._query_compiler.getitem_column_array(cols)
-                    if cols is None:
-                        raise NotImplementedError("Unsupported groupby arguments")
-                    by = cols.concat(1, series, ignore_index=True)
-
+                elif mismatch and any(
+                    isinstance(obj, str) and obj not in self.columns for obj in by
+                ):
+                    names = [o.name if isinstance(o, Series) else o for o in by]
+                    raise KeyError(next(x for x in names if x not in self))
         return DataFrameGroupBy(
             self,
             by,
