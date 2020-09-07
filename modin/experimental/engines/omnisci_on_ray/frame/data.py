@@ -196,13 +196,26 @@ class OmnisciOnRayFrame(BasePandasFrame):
         return [expr._dtype for expr in exprs.values()]
 
     def groupby_agg(self, by, axis, agg, groupby_args, **kwargs):
-        # Currently we only expect by to be a projection of the same frame.
-        # If 'by' holds a list of columns, then we create such projection
+        # Currently we only expect 'by' to be a projection of the same frame.
+        # If 'by' holds a list of columns/series, then we create such projection
         # to re-use code.
         if not isinstance(by, DFAlgQueryCompiler):
             if is_list_like(by):
-                by_cols = Index.__new__(Index, data=by, dtype=self.columns.dtype)
+                by_cols = []
+                by_frames = []
+                for obj in by:
+                    if isinstance(obj, str):
+                        by_cols.append(obj)
+                    elif hasattr(obj, "_query_compiler"):
+                        by_frames.append(obj._query_compiler._modin_frame)
+                    else:
+                        raise NotImplementedError("unsupported groupby args")
+                by_cols = Index.__new__(Index, data=by_cols, dtype=self.columns.dtype)
                 by_frame = self.mask(col_indices=by_cols)
+                if by_frames:
+                    by_frame = by_frame._concat(
+                        axis=1, other_modin_frames=by_frames, ignore_index=True
+                    )
             else:
                 raise NotImplementedError("unsupported groupby args")
         else:
