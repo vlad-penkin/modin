@@ -31,7 +31,7 @@ def DFAlgNotSupported(fn_name):
 
 class DFAlgQueryCompiler(BaseQueryCompiler):
     """This class implements the logic necessary for operating on partitions
-        with a lazy DataFrame Algebra based backend."""
+    with a lazy DataFrame Algebra based backend."""
 
     lazy_execution = True
 
@@ -99,7 +99,11 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
                 on = [on]
             return self.__constructor__(
                 self._modin_frame.join(
-                    right._modin_frame, how=how, on=on, sort=sort, suffixes=suffixes,
+                    right._modin_frame,
+                    how=how,
+                    on=on,
+                    sort=sort,
+                    suffixes=suffixes,
                 )
             )
         else:
@@ -111,7 +115,12 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
         )
 
     def groupby_size(
-        query_compiler, by, axis, groupby_args, map_args, **kwargs,
+        query_compiler,
+        by,
+        axis,
+        groupby_args,
+        map_args,
+        **kwargs,
     ):
         """Perform a groupby size.
 
@@ -258,7 +267,11 @@ class DFAlgQueryCompiler(BaseQueryCompiler):
     ):
         assert not inplace, "inplace=True should be handled on upper level"
         new_frame = self._modin_frame.fillna(
-            value=value, method=method, axis=axis, limit=limit, downcast=downcast,
+            value=value,
+            method=method,
+            axis=axis,
+            limit=limit,
+            downcast=downcast,
         )
         return self.__constructor__(new_frame, self._shape_hint)
 
