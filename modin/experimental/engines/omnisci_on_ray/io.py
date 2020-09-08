@@ -146,6 +146,12 @@ class OmnisciOnRayIO(RayIO):
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
 
+            autogenerate_column_names = False
+            if names:
+                skiprows = skiprows if skiprows is not None and skiprows > 2 else 1
+            elif skiprows is not None and skiprows > 0:
+                autogenerate_column_names = True
+
             po = ParseOptions(
                 delimiter=sep if sep else "\\s+" if delim_whitespace else delimiter,
                 quote_char=quotechar,
@@ -171,7 +177,7 @@ class OmnisciOnRayIO(RayIO):
                 block_size=None,
                 skip_rows=skiprows,
                 column_names=names,
-                autogenerate_column_names=None,
+                autogenerate_column_names=autogenerate_column_names,
             )
 
             at = read_csv(

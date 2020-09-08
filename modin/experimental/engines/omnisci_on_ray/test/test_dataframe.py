@@ -12,6 +12,9 @@
 # governing permissions and limitations under the License.
 
 import os
+from pathlib import Path
+import csv
+
 import pandas as pd
 import numpy as np
 import pytest
@@ -28,6 +31,9 @@ from modin.pandas.test.utils import (
     test_data_values,
     test_data_keys,
 )
+
+TEST_CSV_FILENAME = "test.csv"
+SMALL_ROW_SIZE = 2000
 
 
 def set_execution_mode(frame, mode, recursive=False):
@@ -46,7 +52,7 @@ def run_and_compare(
     force_lazy=True,
     force_arrow_execute=False,
     allow_subqueries=False,
-    **kwargs
+    **kwargs,
 ):
     def run_modin(
         fn, data, data2, force_lazy, force_arrow_execute, allow_subqueries, **kwargs
@@ -85,7 +91,7 @@ def run_and_compare(
                 force_lazy=force_lazy,
                 force_arrow_execute=force_arrow_execute,
                 allow_subqueries=allow_subqueries,
-                **kwargs
+                **kwargs,
             )
             _ = exp_res.index
     else:
@@ -96,9 +102,80 @@ def run_and_compare(
             force_lazy=force_lazy,
             force_arrow_execute=force_arrow_execute,
             allow_subqueries=allow_subqueries,
-            **kwargs
+            **kwargs,
         )
         df_equals(ref_res, exp_res)
+
+
+@pytest.fixture
+def make_csv_file(
+    filename=TEST_CSV_FILENAME,
+    delimiter=",",
+    compression="infer",
+):
+    """Pytest fixture factory that makes temp csv files for testing.
+
+    Yields:
+        Function that generates csv files
+    """
+    filenames = []
+
+    def _make_csv_file(
+        filename=filename,
+        row_size=SMALL_ROW_SIZE,
+        force=True,
+        delimiter=delimiter,
+        encoding=None,
+        compression=compression,
+    ):
+        if os.path.exists(filename) and not force:
+            pass
+        else:
+            dates = pd.date_range("2000", freq="h", periods=row_size)
+            data = {
+                "col1": np.arange(row_size),
+                "col2": [str(x.date()) for x in dates],
+                "col3": np.arange(row_size),
+                "col4": [str(x.time()) for x in dates],
+            }
+            df = pd.DataFrame(data)
+            if compression == "gzip":
+                filename = "{}.gz".format(filename)
+            elif compression == "zip" or compression == "xz" or compression == "bz2":
+                filename = "{fname}.{comp}".format(fname=filename, comp=compression)
+
+            df.to_csv(
+                filename, sep=delimiter, encoding=encoding, compression=compression
+            )
+            filenames.append(filename)
+            return df
+
+    # Return function that generates csv files
+    yield _make_csv_file
+
+    # Delete csv files that were created
+    for filename in filenames:
+        if os.path.exists(filename):
+            try:
+                os.remove(filename)
+            except PermissionError:
+                pass
+
+
+def get_unique_filename(test_name: str, kwargs: dict = {}, extension: str = "csv"):
+    assert "." not in extension, "please provide pure extenxion name without '.'"
+    return (
+        test_name
+        + "_".join(
+            [
+                str(value)
+                if not isinstance(value, (list, tuple))
+                else "_".join([str(x) for x in value])
+                for value in kwargs.values()
+            ]
+        )
+        + f".{extension}"
+    )
 
 
 class TestCSV:
@@ -249,6 +326,40 @@ class TestCSV:
         exp = mpd.concat([exp1, exp2])
 
         df_equals(ref, exp)
+
+    @pytest.mark.parametrize("skiprows", [None, 0, 1])
+    @pytest.mark.parametrize(
+        "names",
+        [
+            None,
+            ["", "col1", "col2", "col3", "col4"],
+            pytest.param(
+                ["col1", "col2", "col3", "col4"],
+                marks=pytest.mark.xfail(
+                    reason="read_csv fails without specifieng index column name."
+                ),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("header", [None, "infer", 0])
+    def test_from_csv(self, make_csv_file, header, names, skiprows):
+        kwargs = {
+            "header": header,
+            "names": names,
+            "skiprows": skiprows,
+        }
+        unique_filename = get_unique_filename("test_from_csv", kwargs)
+        make_csv_file(filename=unique_filename)
+
+        pandas_df = mpd.read_csv(unique_filename, **kwargs)
+        modin_df = mpd.read_csv(unique_filename, **kwargs)
+
+        df_equals(modin_df, pandas_df)
+
+        pandas_df = mpd.read_csv(Path(unique_filename), **kwargs)
+        modin_df = mpd.read_csv(Path(unique_filename), **kwargs)
+
+        df_equals(modin_df, pandas_df)
 
 
 class TestMasks:
