@@ -146,11 +146,13 @@ class OmnisciOnRayIO(RayIO):
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
 
-            autogenerate_column_names = False
-            if names:
-                skiprows = skiprows if skiprows is not None and skiprows > 2 else 1
-            elif skiprows is not None and skiprows > 0:
-                autogenerate_column_names = True
+            if header is not None:
+                if header == 0:
+                    skiprows = skiprows + 1 if skiprows is not None else 1
+                else:
+                    raise NotImplementedError(
+                        "read_csv with OmniSci engine supports only 0 and None header parameters"
+                    )
 
             po = ParseOptions(
                 delimiter=sep if sep else "\\s+" if delim_whitespace else delimiter,
@@ -177,7 +179,7 @@ class OmnisciOnRayIO(RayIO):
                 block_size=None,
                 skip_rows=skiprows,
                 column_names=names,
-                autogenerate_column_names=autogenerate_column_names,
+                autogenerate_column_names=None,
             )
 
             at = read_csv(

@@ -13,7 +13,6 @@
 
 import os
 from pathlib import Path
-import csv
 
 import pandas as pd
 import numpy as np
@@ -24,16 +23,15 @@ os.environ["MODIN_ENGINE"] = "ray"
 os.environ["MODIN_BACKEND"] = "omnisci"
 
 import modin.pandas as mpd
-from modin.pandas.test.utils import (
+from modin.pandas.test.utils import (  # noqa: F401
     df_equals,
     bool_arg_values,
     to_pandas,
     test_data_values,
     test_data_keys,
+    make_csv_file,
+    get_unique_filename,
 )
-
-TEST_CSV_FILENAME = "test.csv"
-SMALL_ROW_SIZE = 2000
 
 
 def set_execution_mode(frame, mode, recursive=False):
@@ -105,77 +103,6 @@ def run_and_compare(
             **kwargs,
         )
         df_equals(ref_res, exp_res)
-
-
-@pytest.fixture
-def make_csv_file(
-    filename=TEST_CSV_FILENAME,
-    delimiter=",",
-    compression="infer",
-):
-    """Pytest fixture factory that makes temp csv files for testing.
-
-    Yields:
-        Function that generates csv files
-    """
-    filenames = []
-
-    def _make_csv_file(
-        filename=filename,
-        row_size=SMALL_ROW_SIZE,
-        force=True,
-        delimiter=delimiter,
-        encoding=None,
-        compression=compression,
-    ):
-        if os.path.exists(filename) and not force:
-            pass
-        else:
-            dates = pd.date_range("2000", freq="h", periods=row_size)
-            data = {
-                "col1": np.arange(row_size),
-                "col2": [str(x.date()) for x in dates],
-                "col3": np.arange(row_size),
-                "col4": [str(x.time()) for x in dates],
-            }
-            df = pd.DataFrame(data)
-            if compression == "gzip":
-                filename = "{}.gz".format(filename)
-            elif compression == "zip" or compression == "xz" or compression == "bz2":
-                filename = "{fname}.{comp}".format(fname=filename, comp=compression)
-
-            df.to_csv(
-                filename, sep=delimiter, encoding=encoding, compression=compression
-            )
-            filenames.append(filename)
-            return df
-
-    # Return function that generates csv files
-    yield _make_csv_file
-
-    # Delete csv files that were created
-    for filename in filenames:
-        if os.path.exists(filename):
-            try:
-                os.remove(filename)
-            except PermissionError:
-                pass
-
-
-def get_unique_filename(test_name: str, kwargs: dict = {}, extension: str = "csv"):
-    assert "." not in extension, "please provide pure extenxion name without '.'"
-    return (
-        test_name
-        + "_".join(
-            [
-                str(value)
-                if not isinstance(value, (list, tuple))
-                else "_".join([str(x) for x in value])
-                for value in kwargs.values()
-            ]
-        )
-        + f".{extension}"
-    )
 
 
 class TestCSV:
@@ -327,36 +254,35 @@ class TestCSV:
 
         df_equals(ref, exp)
 
-    @pytest.mark.parametrize("skiprows", [None, 0, 1])
+    # Covering only read_csv for Census benchmark case
+    @pytest.mark.parametrize("names", [["col1", "col2", "col3", "col4"]])
     @pytest.mark.parametrize(
-        "names",
+        "header",
         [
             None,
-            ["", "col1", "col2", "col3", "col4"],
+            0,
             pytest.param(
-                ["col1", "col2", "col3", "col4"],
+                1,
                 marks=pytest.mark.xfail(
-                    reason="read_csv fails without specifieng index column name."
+                    reason="read_csv with OmniSci engine supports only 0 and None header parameters"
                 ),
             ),
         ],
     )
-    @pytest.mark.parametrize("header", [None, "infer", 0])
-    def test_from_csv(self, make_csv_file, header, names, skiprows):
+    def test_from_csv(self, make_csv_file, header, names):  # noqa: F811
         kwargs = {
             "header": header,
             "names": names,
-            "skiprows": skiprows,
         }
         unique_filename = get_unique_filename("test_from_csv", kwargs)
         make_csv_file(filename=unique_filename)
 
-        pandas_df = mpd.read_csv(unique_filename, **kwargs)
+        pandas_df = pd.read_csv(unique_filename, **kwargs)
         modin_df = mpd.read_csv(unique_filename, **kwargs)
 
         df_equals(modin_df, pandas_df)
 
-        pandas_df = mpd.read_csv(Path(unique_filename), **kwargs)
+        pandas_df = pd.read_csv(Path(unique_filename), **kwargs)
         modin_df = mpd.read_csv(Path(unique_filename), **kwargs)
 
         df_equals(modin_df, pandas_df)
