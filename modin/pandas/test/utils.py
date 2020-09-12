@@ -22,7 +22,6 @@ from pandas.util.testing import (
 import modin.pandas as pd
 from modin.pandas.utils import to_pandas
 from io import BytesIO
-import os
 
 random_state = np.random.RandomState(seed=42)
 
@@ -704,65 +703,6 @@ def generate_none_dfs():
         }
     )
     return df, df2
-
-
-@pytest.fixture
-def make_csv_file(
-    filename=TEST_CSV_FILENAME,
-    delimiter=",",
-    compression="infer",
-):
-    """Pytest fixture factory that makes temp csv files for testing.
-
-    Yields:
-        Function that generates csv files
-    """
-    filenames = []
-
-    def _make_csv_file(
-        filename=filename,
-        row_size=SMALL_ROW_SIZE,
-        force=True,
-        delimiter=delimiter,
-        encoding=None,
-        compression=compression,
-    ):
-        if os.path.exists(filename) and not force:
-            pass
-        else:
-            dates = pd.date_range("2000", freq="h", periods=row_size)
-            data = {
-                "col1": np.arange(row_size),
-                "col2": [str(x.date()) for x in dates],
-                "col3": np.arange(row_size),
-                "col4": [str(x.time()) for x in dates],
-            }
-            df = pd.DataFrame(data)
-            if compression == "gzip":
-                filename = "{}.gz".format(filename)
-            elif compression == "zip" or compression == "xz" or compression == "bz2":
-                filename = "{fname}.{comp}".format(fname=filename, comp=compression)
-
-            df.to_csv(
-                filename,
-                sep=delimiter,
-                encoding=encoding,
-                compression=compression,
-                index=False,
-            )
-            filenames.append(filename)
-            return df
-
-    # Return function that generates csv files
-    yield _make_csv_file
-
-    # Delete csv files that were created
-    for filename in filenames:
-        if os.path.exists(filename):
-            try:
-                os.remove(filename)
-            except PermissionError:
-                pass
 
 
 def get_unique_filename(test_name: str, kwargs: dict = {}, extension: str = "csv"):

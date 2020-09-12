@@ -20,6 +20,12 @@ from pyarrow.csv import read_csv, ParseOptions, ConvertOptions, ReadOptions
 import pyarrow as pa
 
 
+class NotImplementedInOmnisciOnRayIO(NotImplementedError):
+    """OmnisciOnRayIO class specific exception"""
+
+    pass
+
+
 class OmnisciOnRayIO(RayIO):
 
     frame_cls = OmnisciOnRayFrame
@@ -146,11 +152,11 @@ class OmnisciOnRayIO(RayIO):
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
 
-            if header is not None:
+            if header not in [None, "infer"]:
                 if header == 0:
                     skiprows = skiprows + 1 if skiprows is not None else 1
                 else:
-                    raise NotImplementedError(
+                    raise NotImplementedInOmnisciOnRayIO(
                         "read_csv with OmniSci engine supports only 0 and None header parameters"
                     )
 
@@ -190,7 +196,7 @@ class OmnisciOnRayIO(RayIO):
             )
 
             return cls.from_arrow(at)
-        except pa.ArrowNotImplementedError:
+        except (pa.ArrowNotImplementedError, NotImplementedInOmnisciOnRayIO):
             if eng in ["arrow"]:
                 raise
 

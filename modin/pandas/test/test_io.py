@@ -152,7 +152,9 @@ def teardown_test_file(test_path):
 
 
 @pytest.fixture
-def make_csv_file(delimiter=",", compression="infer"):
+def make_csv_file(
+    filename=TEST_CSV_FILENAME, delimiter=",", compression="infer",
+):
     """Pytest fixture factory that makes temp csv files for testing.
 
     Yields:
@@ -161,7 +163,7 @@ def make_csv_file(delimiter=",", compression="infer"):
     filenames = []
 
     def _make_csv_file(
-        filename=TEST_CSV_FILENAME,
+        filename=filename,
         row_size=SMALL_ROW_SIZE,
         force=True,
         delimiter=delimiter,
@@ -171,22 +173,25 @@ def make_csv_file(delimiter=",", compression="infer"):
         if os.path.exists(filename) and not force:
             pass
         else:
-            dates = pandas.date_range("2000", freq="h", periods=row_size)
-            df = pandas.DataFrame(
-                {
-                    "col1": np.arange(row_size),
-                    "col2": [str(x.date()) for x in dates],
-                    "col3": np.arange(row_size),
-                    "col4": [str(x.time()) for x in dates],
-                }
-            )
+            dates = pd.date_range("2000", freq="h", periods=row_size)
+            data = {
+                "col1": np.arange(row_size),
+                "col2": [str(x.date()) for x in dates],
+                "col3": np.arange(row_size),
+                "col4": [str(x.time()) for x in dates],
+            }
+            df = pd.DataFrame(data)
             if compression == "gzip":
                 filename = "{}.gz".format(filename)
             elif compression == "zip" or compression == "xz" or compression == "bz2":
                 filename = "{fname}.{comp}".format(fname=filename, comp=compression)
 
             df.to_csv(
-                filename, sep=delimiter, encoding=encoding, compression=compression
+                filename,
+                sep=delimiter,
+                encoding=encoding,
+                compression=compression,
+                index=False,
             )
             filenames.append(filename)
             return df
@@ -527,8 +532,7 @@ def test_from_json_lines():
 
 
 @pytest.mark.parametrize(
-    "data",
-    [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
+    "data", [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
 )
 def test_read_json_string_bytes(data):
     with pytest.warns(UserWarning):

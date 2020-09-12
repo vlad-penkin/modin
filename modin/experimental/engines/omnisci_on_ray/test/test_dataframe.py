@@ -12,7 +12,6 @@
 # governing permissions and limitations under the License.
 
 import os
-from pathlib import Path
 
 import pandas as pd
 import numpy as np
@@ -23,15 +22,15 @@ os.environ["MODIN_ENGINE"] = "ray"
 os.environ["MODIN_BACKEND"] = "omnisci"
 
 import modin.pandas as mpd
-from modin.pandas.test.utils import (  # noqa: F401
+from modin.pandas.test.utils import (
     df_equals,
     bool_arg_values,
     to_pandas,
     test_data_values,
     test_data_keys,
-    make_csv_file,
     get_unique_filename,
 )
+from modin.pandas.test.test_io import make_csv_file  # noqa: F401
 
 
 def set_execution_mode(frame, mode, recursive=False):
@@ -256,21 +255,10 @@ class TestCSV:
 
     # Covering only read_csv for Census benchmark case
     @pytest.mark.parametrize("names", [["col1", "col2", "col3", "col4"]])
-    @pytest.mark.parametrize(
-        "header",
-        [
-            None,
-            0,
-            pytest.param(
-                1,
-                marks=pytest.mark.xfail(
-                    reason="read_csv with OmniSci engine supports only 0 and None header parameters"
-                ),
-            ),
-        ],
-    )
+    @pytest.mark.parametrize("header", [None, 0])
     def test_from_csv(self, make_csv_file, header, names):  # noqa: F811
         kwargs = {
+            "engine": None,
             "header": header,
             "names": names,
         }
@@ -279,11 +267,6 @@ class TestCSV:
 
         pandas_df = pd.read_csv(unique_filename, **kwargs)
         modin_df = mpd.read_csv(unique_filename, **kwargs)
-
-        df_equals(modin_df, pandas_df)
-
-        pandas_df = pd.read_csv(Path(unique_filename), **kwargs)
-        modin_df = mpd.read_csv(Path(unique_filename), **kwargs)
 
         df_equals(modin_df, pandas_df)
 
@@ -1238,9 +1221,7 @@ class TestSort:
             return df.sort_values(["a", "b"], ascending=ascending)
 
         run_and_compare(
-            sort,
-            data=self.data,
-            ascending=ascending,
+            sort, data=self.data, ascending=ascending,
         )
 
     @pytest.mark.parametrize("ascending", ascending_values)
@@ -1249,9 +1230,7 @@ class TestSort:
             return df.sort_values("d", ascending=ascending)
 
         run_and_compare(
-            sort,
-            data=self.data,
-            ascending=ascending,
+            sort, data=self.data, ascending=ascending,
         )
 
     @pytest.mark.parametrize("cols", cols_values)
