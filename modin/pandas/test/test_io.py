@@ -152,37 +152,34 @@ def teardown_test_file(test_path):
 
 
 @pytest.fixture
-def make_csv_file(
-    filename=TEST_CSV_FILENAME,
-    delimiter=",",
-    compression="infer",
-):
+def make_csv_file(delimiter=",", compression="infer"):
     """Pytest fixture factory that makes temp csv files for testing.
-
     Yields:
         Function that generates csv files
     """
     filenames = []
 
     def _make_csv_file(
-        filename=filename,
+        filename=TEST_CSV_FILENAME,
         row_size=SMALL_ROW_SIZE,
         force=True,
         delimiter=delimiter,
         encoding=None,
         compression=compression,
+        add_index=True,
     ):
         if os.path.exists(filename) and not force:
             pass
         else:
-            dates = pd.date_range("2000", freq="h", periods=row_size)
-            data = {
-                "col1": np.arange(row_size),
-                "col2": [str(x.date()) for x in dates],
-                "col3": np.arange(row_size),
-                "col4": [str(x.time()) for x in dates],
-            }
-            df = pd.DataFrame(data)
+            dates = pandas.date_range("2000", freq="h", periods=row_size)
+            df = pandas.DataFrame(
+                {
+                    "col1": np.arange(row_size),
+                    "col2": [str(x.date()) for x in dates],
+                    "col3": np.arange(row_size),
+                    "col4": [str(x.time()) for x in dates],
+                }
+            )
             if compression == "gzip":
                 filename = "{}.gz".format(filename)
             elif compression == "zip" or compression == "xz" or compression == "bz2":
@@ -193,7 +190,7 @@ def make_csv_file(
                 sep=delimiter,
                 encoding=encoding,
                 compression=compression,
-                index=False,
+                index=add_index,
             )
             filenames.append(filename)
             return df
@@ -534,8 +531,7 @@ def test_from_json_lines():
 
 
 @pytest.mark.parametrize(
-    "data",
-    [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
+    "data", [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
 )
 def test_read_json_string_bytes(data):
     with pytest.warns(UserWarning):
@@ -1065,9 +1061,6 @@ def test_from_csv_chunksize(make_csv_file):
     df_equals(modin_df, pd_df)
 
 
-@pytest.mark.xfail(
-    reason="read_csv works incorrectly here for now, see modin-project/modin #2074 for details"
-)
 def test_from_csv_skiprows(make_csv_file):
     make_csv_file()
 

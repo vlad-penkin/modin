@@ -28,9 +28,8 @@ from modin.pandas.test.utils import (
     to_pandas,
     test_data_values,
     test_data_keys,
-    get_unique_filename,
 )
-from modin.pandas.test.test_io import make_csv_file  # noqa: F401
+from modin.pandas.test.test_io import make_csv_file, TEST_CSV_FILENAME  # noqa: F401
 
 
 def set_execution_mode(frame, mode, recursive=False):
@@ -262,11 +261,10 @@ class TestCSV:
             "header": header,
             "names": names,
         }
-        unique_filename = get_unique_filename("test_from_csv", kwargs)
-        make_csv_file(filename=unique_filename)
+        make_csv_file(add_index=False)
 
-        pandas_df = pd.read_csv(unique_filename, **kwargs)
-        modin_df = mpd.read_csv(unique_filename, **kwargs)
+        pandas_df = pd.read_csv(TEST_CSV_FILENAME, **kwargs)
+        modin_df = mpd.read_csv(TEST_CSV_FILENAME, **kwargs)
 
         df_equals(modin_df, pandas_df)
 
@@ -1221,9 +1219,7 @@ class TestSort:
             return df.sort_values(["a", "b"], ascending=ascending)
 
         run_and_compare(
-            sort,
-            data=self.data,
-            ascending=ascending,
+            sort, data=self.data, ascending=ascending,
         )
 
     @pytest.mark.parametrize("ascending", ascending_values)
@@ -1232,9 +1228,7 @@ class TestSort:
             return df.sort_values("d", ascending=ascending)
 
         run_and_compare(
-            sort,
-            data=self.data,
-            ascending=ascending,
+            sort, data=self.data, ascending=ascending,
         )
 
     @pytest.mark.parametrize("cols", cols_values)

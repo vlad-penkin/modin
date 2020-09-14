@@ -33,10 +33,6 @@ NROWS = 2 ** 8
 RAND_LOW = 0
 RAND_HIGH = 100
 
-# parameters of test .csv file
-TEST_CSV_FILENAME = "test.csv"
-SMALL_ROW_SIZE = 2000
-
 # Input data and functions for the tests
 # The test data that we will test our code against
 test_data = {
@@ -703,19 +699,3 @@ def generate_none_dfs():
         }
     )
     return df, df2
-
-
-def get_unique_filename(test_name: str, kwargs: dict = {}, extension: str = "csv"):
-    assert "." not in extension, "please provide pure extenxion name without '.'"
-    return (
-        test_name
-        + "_".join(
-            [
-                str(value)
-                if not isinstance(value, (list, tuple))
-                else "_".join([str(x) for x in value])
-                for value in kwargs.values()
-            ]
-        )
-        + f".{extension}"
-    )
