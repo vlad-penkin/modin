@@ -1219,7 +1219,9 @@ class TestSort:
             return df.sort_values(["a", "b"], ascending=ascending)
 
         run_and_compare(
-            sort, data=self.data, ascending=ascending,
+            sort,
+            data=self.data,
+            ascending=ascending,
         )
 
     @pytest.mark.parametrize("ascending", ascending_values)
@@ -1228,7 +1230,9 @@ class TestSort:
             return df.sort_values("d", ascending=ascending)
 
         run_and_compare(
-            sort, data=self.data, ascending=ascending,
+            sort,
+            data=self.data,
+            ascending=ascending,
         )
 
     @pytest.mark.parametrize("cols", cols_values)
