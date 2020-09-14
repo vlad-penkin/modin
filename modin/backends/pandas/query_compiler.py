@@ -1835,7 +1835,7 @@ class PandasQueryCompiler(BaseQueryCompiler):
     def getitem_array(self, key):
         # TODO: dont convert to pandas for array indexing
         if isinstance(key, type(self)):
-            key = key.to_pandas()
+            key = key.to_pandas().squeeze(axis=1)
         if is_bool_indexer(key):
             if isinstance(key, pandas.Series) and not key.index.equals(self.index):
                 warnings.warn(
