@@ -13,6 +13,7 @@
 
 import uuid
 import sys
+import os
 
 import pyarrow as pa
 import numpy as np
@@ -104,7 +105,19 @@ class OmnisciServer:
         if need_cast:
             table = table.cast(new_schema)
 
-        cls._server.consumeArrowTable(name, table)
+        fragment_size = os.environ.get("MODIN_OMNISCI_FRAGMENT_SIZE", None)
+        if fragment_size is None:
+            cpu_count = os.cpu_count()
+            if cpu_count is not None:
+                fragment_size = table.num_rows / cpu_count
+                fragment_size = min(fragment_size, 2 ** 25)
+                fragment_size = max(fragment_size, 2 ** 18)
+            else:
+                fragment_size = 0
+        else:
+            fragment_size = int(fragment_size)
+
+        cls._server.importArrowTable(name, table, fragment_size=fragment_size)
 
         return name
 
