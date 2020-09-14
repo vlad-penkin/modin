@@ -151,7 +151,7 @@ class OmnisciOnRayIO(RayIO):
                     skiprows = skiprows + 1 if skiprows is not None else 1
                 else:
                     raise NotImplementedError(
-                        "read_csv with OmniSci engine supports only 0 and None header parameters"
+                        "read_csv with OmniSci engine supports only 0, None and 'infer' header parameters"
                     )
 
             po = ParseOptions(
