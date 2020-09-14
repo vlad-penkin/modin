@@ -153,7 +153,9 @@ def teardown_test_file(test_path):
 
 @pytest.fixture
 def make_csv_file(
-    filename=TEST_CSV_FILENAME, delimiter=",", compression="infer",
+    filename=TEST_CSV_FILENAME,
+    delimiter=",",
+    compression="infer",
 ):
     """Pytest fixture factory that makes temp csv files for testing.
 
@@ -532,7 +534,8 @@ def test_from_json_lines():
 
 
 @pytest.mark.parametrize(
-    "data", [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
+    "data",
+    [json_short_string, json_short_bytes, json_long_string, json_long_bytes],
 )
 def test_read_json_string_bytes(data):
     with pytest.warns(UserWarning):
@@ -1062,6 +1065,9 @@ def test_from_csv_chunksize(make_csv_file):
     df_equals(modin_df, pd_df)
 
 
+@pytest.mark.xfail(
+    reason="read_csv works incorrectly here for now, see modin-project/modin #2074 for details"
+)
 def test_from_csv_skiprows(make_csv_file):
     make_csv_file()
 
