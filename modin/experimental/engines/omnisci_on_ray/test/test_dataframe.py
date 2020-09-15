@@ -251,8 +251,7 @@ class TestCSV:
 
         df_equals(ref, exp)
 
-    # Covering only read_csv for Census benchmark case
-    @pytest.mark.parametrize("names", [["col1", "col2", "col3", "col4"]])
+    @pytest.mark.parametrize("names", [None, ["col1", "col2", "col3", "col4"]])
     @pytest.mark.parametrize("header", [None, 0])
     def test_from_csv(self, header, names):
         csv_file = os.path.join(
@@ -264,7 +263,7 @@ class TestCSV:
         }
 
         pandas_df = pd.read_csv(csv_file, **kwargs)
-        modin_df = mpd.read_csv(csv_file, engine="arrow", **kwargs)
+        modin_df = mpd.read_csv(csv_file, **kwargs)
 
         df_equals(modin_df, pandas_df)
 

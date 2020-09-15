@@ -146,12 +146,21 @@ class OmnisciOnRayIO(RayIO):
                 for c in parse_dates:
                     column_types[c] = pa.timestamp("s")
 
-            if header not in [None, "infer"]:
+            if names:
                 if header == 0:
                     skiprows = skiprows + 1 if skiprows is not None else 1
+                elif header is None or header == "infer":
+                    pass
                 else:
                     raise NotImplementedError(
-                        "read_csv with 'arrow' engine supports only 0, None and 'infer' header parameters"
+                        "read_csv with 'arrow' engine and provided 'names' parameter supports only 0, None and 'infer' header values"
+                    )
+            else:
+                if header == 0 or header == "infer":
+                    pass
+                else:
+                    raise NotImplementedError(
+                        "read_csv with 'arrow' engine without 'names' parameter provided supports only 0 and 'infer' header values"
                     )
 
             po = ParseOptions(
