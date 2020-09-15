@@ -166,7 +166,6 @@ def make_csv_file(delimiter=",", compression="infer"):
         delimiter=delimiter,
         encoding=None,
         compression=compression,
-        add_index=True,
     ):
         if os.path.exists(filename) and not force:
             pass
@@ -186,11 +185,7 @@ def make_csv_file(delimiter=",", compression="infer"):
                 filename = "{fname}.{comp}".format(fname=filename, comp=compression)
 
             df.to_csv(
-                filename,
-                sep=delimiter,
-                encoding=encoding,
-                compression=compression,
-                index=add_index,
+                filename, sep=delimiter, encoding=encoding, compression=compression
             )
             filenames.append(filename)
             return df
