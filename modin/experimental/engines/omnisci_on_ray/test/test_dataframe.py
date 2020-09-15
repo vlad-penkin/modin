@@ -29,7 +29,6 @@ from modin.pandas.test.utils import (
     test_data_values,
     test_data_keys,
 )
-from modin.pandas.test.test_io import make_csv_file, TEST_CSV_FILENAME  # noqa: F401
 
 
 def set_execution_mode(frame, mode, recursive=False):
@@ -255,16 +254,17 @@ class TestCSV:
     # Covering only read_csv for Census benchmark case
     @pytest.mark.parametrize("names", [["col1", "col2", "col3", "col4"]])
     @pytest.mark.parametrize("header", [None, 0])
-    def test_from_csv(self, make_csv_file, header, names):  # noqa: F811
+    def test_from_csv(self, header, names):
+        csv_file = os.path.join(
+            self.root, "modin/pandas/test/data", "read_csv_test_data.csv"
+        )
         kwargs = {
-            "engine": None,
             "header": header,
             "names": names,
         }
-        make_csv_file(add_index=False)
 
-        pandas_df = pd.read_csv(TEST_CSV_FILENAME, **kwargs)
-        modin_df = mpd.read_csv(TEST_CSV_FILENAME, **kwargs)
+        pandas_df = pd.read_csv(csv_file, **kwargs)
+        modin_df = mpd.read_csv(csv_file, engine="arrow", **kwargs)
 
         df_equals(modin_df, pandas_df)
 
