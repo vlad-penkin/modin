@@ -39,6 +39,15 @@ about:
   summary: Speed up your Pandas workflows by changing a single line of code
   doc_url: https://modin.readthedocs.io/
   dev_url: https://github.com/modin-project/modin
+  description: |
+    <strong>LEGAL NOTICE: Use of this software package is subject to the
+    software license agreement (as set forth above, in the license section of
+    the installed Conda package and/or the README file) and all notices,
+    disclaimers or license terms for third party or open source software
+    included in or with the software.</strong>
+    <br/><br/>
+    EULA: <a href="https://github.com/modin-project/modin/blob/master/LICENSE" target="_blank">Apache-2.0</a>
+    <br/><br/>  
 
 extra:
   recipe-maintainers:

@@ -13,7 +13,7 @@
 
 import os
 
-import pandas as pd
+import pandas
 import numpy as np
 import pytest
 
@@ -21,7 +21,7 @@ os.environ["MODIN_EXPERIMENTAL"] = "True"
 os.environ["MODIN_ENGINE"] = "ray"
 os.environ["MODIN_BACKEND"] = "omnisci"
 
-import modin.pandas as mpd
+import modin.pandas as pd
 from modin.pandas.test.utils import (
     df_equals,
     bool_arg_values,
@@ -32,7 +32,7 @@ from modin.pandas.test.utils import (
 
 
 def set_execution_mode(frame, mode, recursive=False):
-    if isinstance(frame, (mpd.Series, mpd.DataFrame)):
+    if isinstance(frame, (pd.Series, pd.DataFrame)):
         frame = frame._query_compiler._modin_frame
     frame._force_execution_mode = mode
     if recursive and hasattr(frame._op, "input"):
@@ -52,8 +52,8 @@ def run_and_compare(
     def run_modin(
         fn, data, data2, force_lazy, force_arrow_execute, allow_subqueries, **kwargs
     ):
-        kwargs["df1"] = mpd.DataFrame(data)
-        kwargs["df2"] = mpd.DataFrame(data2)
+        kwargs["df1"] = pd.DataFrame(data)
+        kwargs["df2"] = pd.DataFrame(data2)
         kwargs["df"] = kwargs["df1"]
 
         if force_lazy:
@@ -63,7 +63,7 @@ def run_and_compare(
             set_execution_mode(kwargs["df1"], "arrow")
             set_execution_mode(kwargs["df2"], "arrow")
 
-        exp_res = fn(lib=mpd, **kwargs)
+        exp_res = fn(lib=pd, **kwargs)
 
         if force_arrow_execute:
             set_execution_mode(exp_res, "arrow", allow_subqueries)
@@ -73,10 +73,10 @@ def run_and_compare(
         return exp_res
 
     try:
-        kwargs["df1"] = pd.DataFrame(data)
-        kwargs["df2"] = pd.DataFrame(data2)
+        kwargs["df1"] = pandas.DataFrame(data)
+        kwargs["df2"] = pandas.DataFrame(data2)
         kwargs["df"] = kwargs["df1"]
-        ref_res = fn(lib=pd, **kwargs)
+        ref_res = fn(lib=pandas, **kwargs)
     except Exception as e:
         with pytest.raises(type(e)):
             exp_res = run_modin(
@@ -151,8 +151,8 @@ class TestCSV:
             {"dtype": {"a": "int32", "e": "string"}},
             {"dtype": {"a": np.dtype("int32"), "b": np.dtype("int64"), "e": "string"}},
         ):
-            rp = pd.read_csv(csv_file, **kwargs)
-            rm = to_pandas(mpd.read_csv(csv_file, engine="arrow", **kwargs))
+            rp = pandas.read_csv(csv_file, **kwargs)
+            rm = to_pandas(pd.read_csv(csv_file, engine="arrow", **kwargs))
             df_equals(rp, rm)
 
     def test_housing_csv(self):
@@ -164,8 +164,8 @@ class TestCSV:
                 "dtype": self.boston_housing_dtypes,
             },
         ):
-            rp = pd.read_csv(csv_file, **kwargs)
-            rm = to_pandas(mpd.read_csv(csv_file, engine="arrow", **kwargs))
+            rp = pandas.read_csv(csv_file, **kwargs)
+            rm = to_pandas(pd.read_csv(csv_file, engine="arrow", **kwargs))
             assert rp is not None
             assert rm is not None
             # TODO: df_equals(rp, rm)  #  needs inexact comparison
@@ -191,8 +191,8 @@ class TestCSV:
                 "dtype": {"symbol": "string"},
             },
         ):
-            rp = pd.read_csv(csv_file, **kwargs)
-            rm = to_pandas(mpd.read_csv(csv_file, engine="arrow", **kwargs))
+            rp = pandas.read_csv(csv_file, **kwargs)
+            rm = to_pandas(pd.read_csv(csv_file, engine="arrow", **kwargs))
             df_equals(rm["timestamp"].dt.year, rp["timestamp"].dt.year)
 
     def test_csv_fillna(self):
@@ -204,9 +204,9 @@ class TestCSV:
                 "dtype": self.boston_housing_dtypes,
             },
         ):
-            rp = pd.read_csv(csv_file, **kwargs)
+            rp = pandas.read_csv(csv_file, **kwargs)
             rp = rp["CRIM"].fillna(1000)
-            rm = mpd.read_csv(csv_file, engine="arrow", **kwargs)
+            rm = pd.read_csv(csv_file, engine="arrow", **kwargs)
             rm = rm["CRIM"].fillna(1000)
             df_equals(rp, rm)
 
@@ -215,7 +215,7 @@ class TestCSV:
         csv_file = os.path.join(
             self.root, "modin/pandas/test/data", "test_null_col.csv"
         )
-        ref = pd.read_csv(
+        ref = pandas.read_csv(
             csv_file,
             names=["a", "b", "c"],
             dtype={"a": "int64", "b": "int64", "c": null_dtype},
@@ -223,7 +223,7 @@ class TestCSV:
         )
         ref["a"] = ref["a"] + ref["b"]
 
-        exp = mpd.read_csv(
+        exp = pd.read_csv(
             csv_file,
             names=["a", "b", "c"],
             dtype={"a": "int64", "b": "int64", "c": null_dtype},
@@ -241,13 +241,13 @@ class TestCSV:
 
     def test_read_and_concat(self):
         csv_file = os.path.join(self.root, "modin/pandas/test/data", "test_usecols.csv")
-        ref1 = pd.read_csv(csv_file)
-        ref2 = pd.read_csv(csv_file)
-        ref = pd.concat([ref1, ref2])
+        ref1 = pandas.read_csv(csv_file)
+        ref2 = pandas.read_csv(csv_file)
+        ref = pandas.concat([ref1, ref2])
 
-        exp1 = pd.read_csv(csv_file)
-        exp2 = pd.read_csv(csv_file)
-        exp = mpd.concat([exp1, exp2])
+        exp1 = pandas.read_csv(csv_file)
+        exp2 = pandas.read_csv(csv_file)
+        exp = pd.concat([exp1, exp2])
 
         df_equals(ref, exp)
 
@@ -260,8 +260,8 @@ class TestCSV:
             "names": names,
         }
 
-        pandas_df = pd.read_csv(csv_file, **kwargs)
-        modin_df = mpd.read_csv(csv_file, **kwargs)
+        pandas_df = pandas.read_csv(csv_file, **kwargs)
+        modin_df = pd.read_csv(csv_file, **kwargs)
 
         df_equals(modin_df, pandas_df)
 
@@ -471,7 +471,7 @@ class TestGroupby:
     taxi_data = {
         "a": [1, 1, 2, 2],
         "b": [11, 21, 12, 11],
-        "c": pd.to_datetime(
+        "c": pandas.to_datetime(
             ["20190902", "20180913", "20190921", "20180903"], format="%Y%m%d"
         ),
         "d": [11.5, 21.2, 12.8, 13.4],
@@ -555,7 +555,7 @@ class TestGroupby:
     }
 
     def _get_h2o_df(self):
-        df = pd.DataFrame(self.h2o_data)
+        df = pandas.DataFrame(self.h2o_data)
         df["id1"] = df["id1"].astype("category")
         df["id2"] = df["id2"].astype("category")
         df["id3"] = df["id3"].astype("category")
@@ -567,7 +567,7 @@ class TestGroupby:
         ref = df.groupby(["id1"], observed=True).agg({"v1": "sum"})
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id1"], observed=True, as_index=False).agg(
             {"v1": "sum"}
@@ -585,7 +585,7 @@ class TestGroupby:
         ref = df.groupby(["id1", "id2"], observed=True).agg({"v1": "sum"})
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id1", "id2"], observed=True, as_index=False).agg(
             {"v1": "sum"}
@@ -604,7 +604,7 @@ class TestGroupby:
         ref = df.groupby(["id3"], observed=True).agg({"v1": "sum", "v3": "mean"})
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id3"], observed=True, as_index=False).agg(
             {"v1": "sum", "v3": "mean"}
@@ -624,7 +624,7 @@ class TestGroupby:
         )
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id4"], observed=True, as_index=False).agg(
             {"v1": "mean", "v2": "mean", "v3": "mean"}
@@ -643,7 +643,7 @@ class TestGroupby:
         )
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id6"], observed=True, as_index=False).agg(
             {"v1": "sum", "v2": "sum", "v3": "sum"}
@@ -664,7 +664,7 @@ class TestGroupby:
         )
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         set_execution_mode(modin_df, "lazy")
         modin_df = modin_df.groupby(["id3"], observed=True).agg(
             {"v1": "max", "v2": "min"}
@@ -687,7 +687,7 @@ class TestGroupby:
         )
         ref.reset_index(inplace=True)
 
-        modin_df = mpd.DataFrame(df)
+        modin_df = pd.DataFrame(df)
         modin_df = modin_df.groupby(
             ["id1", "id2", "id3", "id4", "id5", "id6"], observed=True
         ).agg({"v3": "sum", "v1": "count"})
@@ -709,7 +709,7 @@ class TestGroupby:
     def test_agg_std(self):
         def std(df, **kwargs):
             df = df.groupby("a").agg({"b": "std", "c": "std"})
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pandas.DataFrame):
                 df = to_pandas(df)
             df["b"] = df["b"].apply(lambda x: round(x, 10))
             df["c"] = df["c"].apply(lambda x: round(x, 10))
@@ -782,7 +782,7 @@ class TestMerge:
     }
 
     def _get_h2o_df(self, data):
-        df = pd.DataFrame(data)
+        df = pandas.DataFrame(data)
         if "id1" in data:
             df["id1"] = df["id1"].astype("category")
         if "id2" in data:
@@ -829,8 +829,8 @@ class TestMerge:
         ref = lhs.merge(rhs, on="id1")
         self._fix_category_cols(ref)
 
-        modin_lhs = mpd.DataFrame(lhs)
-        modin_rhs = mpd.DataFrame(rhs)
+        modin_lhs = pd.DataFrame(lhs)
+        modin_rhs = pd.DataFrame(rhs)
         modin_res = modin_lhs.merge(modin_rhs, on="id1")
 
         exp = to_pandas(modin_res)
@@ -845,8 +845,8 @@ class TestMerge:
         ref = lhs.merge(rhs, on="id2")
         self._fix_category_cols(ref)
 
-        modin_lhs = mpd.DataFrame(lhs)
-        modin_rhs = mpd.DataFrame(rhs)
+        modin_lhs = pd.DataFrame(lhs)
+        modin_rhs = pd.DataFrame(rhs)
         modin_res = modin_lhs.merge(modin_rhs, on="id2")
 
         exp = to_pandas(modin_res)
@@ -861,8 +861,8 @@ class TestMerge:
         ref = lhs.merge(rhs, how="left", on="id2")
         self._fix_category_cols(ref)
 
-        modin_lhs = mpd.DataFrame(lhs)
-        modin_rhs = mpd.DataFrame(rhs)
+        modin_lhs = pd.DataFrame(lhs)
+        modin_rhs = pd.DataFrame(rhs)
         modin_res = modin_lhs.merge(modin_rhs, how="left", on="id2")
 
         exp = to_pandas(modin_res)
@@ -877,8 +877,8 @@ class TestMerge:
         ref = lhs.merge(rhs, on="id5")
         self._fix_category_cols(ref)
 
-        modin_lhs = mpd.DataFrame(lhs)
-        modin_rhs = mpd.DataFrame(rhs)
+        modin_lhs = pd.DataFrame(lhs)
+        modin_rhs = pd.DataFrame(rhs)
         modin_res = modin_lhs.merge(modin_rhs, on="id5")
 
         exp = to_pandas(modin_res)
@@ -893,8 +893,8 @@ class TestMerge:
         ref = lhs.merge(rhs, on="id3")
         self._fix_category_cols(ref)
 
-        modin_lhs = mpd.DataFrame(lhs)
-        modin_rhs = mpd.DataFrame(rhs)
+        modin_lhs = pd.DataFrame(lhs)
+        modin_rhs = pd.DataFrame(rhs)
         modin_res = modin_lhs.merge(modin_rhs, on="id3")
 
         exp = to_pandas(modin_res)
@@ -904,7 +904,7 @@ class TestMerge:
 
     dt_data1 = {
         "id": [1, 2],
-        "timestamp": pd.to_datetime(["20000101", "20000201"], format="%Y%m%d"),
+        "timestamp": pandas.to_datetime(["20000101", "20000201"], format="%Y%m%d"),
     }
     dt_data2 = {"id": [1, 2], "timestamp_year": [2000, 2000]}
 
@@ -1129,7 +1129,7 @@ class TestDateTime:
     datetime_data = {
         "a": [1, 1, 2, 2],
         "b": [11, 21, 12, 11],
-        "c": pd.to_datetime(
+        "c": pandas.to_datetime(
             ["20190902", "20180913", "20190921", "20180903"], format="%Y%m%d"
         ),
     }
@@ -1153,10 +1153,10 @@ class TestCategory:
     }
 
     def test_cat_codes(self):
-        pandas_df = pd.DataFrame(self.data)
+        pandas_df = pandas.DataFrame(self.data)
         pandas_df["a"] = pandas_df["a"].astype("category")
 
-        modin_df = mpd.DataFrame(pandas_df)
+        modin_df = pd.DataFrame(pandas_df)
 
         modin_df["a"] = modin_df["a"].cat.codes
         exp = to_pandas(modin_df)
