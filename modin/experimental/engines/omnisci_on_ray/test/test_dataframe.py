@@ -12,7 +12,6 @@
 # governing permissions and limitations under the License.
 
 import os
-
 import pandas
 import numpy as np
 import pytest
@@ -47,7 +46,7 @@ def run_and_compare(
     force_lazy=True,
     force_arrow_execute=False,
     allow_subqueries=False,
-    **kwargs,
+    **kwargs
 ):
     def run_modin(
         fn, data, data2, force_lazy, force_arrow_execute, allow_subqueries, **kwargs
@@ -86,7 +85,7 @@ def run_and_compare(
                 force_lazy=force_lazy,
                 force_arrow_execute=force_arrow_execute,
                 allow_subqueries=allow_subqueries,
-                **kwargs,
+                **kwargs
             )
             _ = exp_res.index
     else:
@@ -97,7 +96,7 @@ def run_and_compare(
             force_lazy=force_lazy,
             force_arrow_execute=force_arrow_execute,
             allow_subqueries=allow_subqueries,
-            **kwargs,
+            **kwargs
         )
         df_equals(ref_res, exp_res)
 
