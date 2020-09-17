@@ -17,7 +17,7 @@ requirements:
     - pip
     - python
   run:
-    - ray ==0.8.6
+    - ray >=0.8.7
     - omniscidbe4py
     - python
     - pandas ==1.0.5
