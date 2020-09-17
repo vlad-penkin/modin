@@ -251,12 +251,10 @@ class TestCSV:
 
         df_equals(ref, exp)
 
-    @pytest.mark.parametrize("names", [None, ["col1", "col2", "col3", "col4"]])
+    @pytest.mark.parametrize("names", [None, ["a", "b", "c", "d", "e"]])
     @pytest.mark.parametrize("header", [None, 0])
     def test_from_csv(self, header, names):
-        csv_file = os.path.join(
-            self.root, "modin/pandas/test/data", "read_csv_test_data.csv"
-        )
+        csv_file = os.path.join(self.root, "modin/pandas/test/data", "test_usecols.csv")
         kwargs = {
             "header": header,
             "names": names,

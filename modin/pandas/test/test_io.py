@@ -154,6 +154,7 @@ def teardown_test_file(test_path):
 @pytest.fixture
 def make_csv_file(delimiter=",", compression="infer"):
     """Pytest fixture factory that makes temp csv files for testing.
+
     Yields:
         Function that generates csv files
     """
