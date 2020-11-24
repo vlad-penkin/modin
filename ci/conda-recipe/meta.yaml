@@ -59,6 +59,10 @@ about:
     <br/><br/>
     For more information see <a href="https://modin.readthedocs.io/">documentation</a>
 
+license_file: 
+  - LICENSE
+  - requirements/third-party-programs.txt
+  
 extra:
   recipe-maintainers:
     - devin-petersohn
