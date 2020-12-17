@@ -9,9 +9,12 @@ source:
   git_rev: "{{ version }}"
 
 build:
-  number: 0
+  number: 1
   script: '{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv '
-  noarch: python
+  # noarch disabled because the recipe now has selectors as
+  # Ray for MacOSX is not available at conda-forge yet
+  #  noarch: python
+  skip: True  # [py<36]
 
 requirements:
   host:
@@ -25,13 +28,15 @@ requirements:
     - dask >=2.12.0
     - distributed >=2.12.0
 # ray and omnisci deps
-    - ray >=1.0.0
+    - ray >=1.0.0  # [osx]
+    - ray-core >=1.0  # [win or linux]
     - pyarrow >=1.0.0
     - omniscidbe4py
 # remote deps
     - rpyc ==4.1.5
     - cloudpickle ==1.4.1
     - boto3
+    - ray-autoscaler >=1.0  # [linux]
 
 test:
   import:
