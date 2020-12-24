@@ -1,4 +1,4 @@
-{% set version = "0.8.2" %}
+{% set version = "0.8.3" %}
 
 package:
   name: modin
@@ -22,7 +22,7 @@ requirements:
     - python
   run:
     - python
-    - pandas ==1.1.4
+    - pandas ==1.1.5
     - packaging
 # dask deps
     - dask >=2.12.0
@@ -30,7 +30,7 @@ requirements:
 # ray and omnisci deps
     - ray >=1.0.0  # [osx]
     - ray-core >=1.0  # [win or linux]
-    - pyarrow >=1.0.0
+    - pyarrow ==1.0.0
     - omniscidbe4py
 # remote deps
     - rpyc ==4.1.5
