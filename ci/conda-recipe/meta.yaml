@@ -30,7 +30,7 @@ requirements:
 # ray and omnisci deps
     - ray >=1.0.0  # [osx]
     - ray-core >=1.0  # [win or linux]
-    - pyarrow ==1.0.0
+    - pyarrow ==2.0.0
     - omniscidbe4py
 # remote deps
     - rpyc ==4.1.5
