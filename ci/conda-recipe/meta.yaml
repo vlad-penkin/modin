@@ -1,4 +1,4 @@
-{% set version = "0.8.3" %}
+{% set version = "0.9.0" %}
 
 package:
   name: modin
@@ -22,7 +22,7 @@ requirements:
     - python
   run:
     - python
-    - pandas ==1.1.5
+    - pandas ==1.2.3
     - packaging
 # dask deps
     - dask >=2.12.0
